@@ -115,13 +115,7 @@ export default function App() {
       if (alive) setPeerReadAt(data?.last_read_at || null)
     }
 
-    const markRead = async () => {
-      if (document.visibilityState !== 'visible') return
-      await supabase.rpc('mark_conversation_read', { p_conversation_id: active.id })
-    }
-
     loadPeerRead()
-    markRead()
     const channel = supabase.channel('read-' + active.id)
       .on('postgres_changes', {
         event: 'UPDATE', schema: 'public', table: 'conversation_members',
@@ -135,14 +129,24 @@ export default function App() {
         if (status === 'SUBSCRIBED') loadPeerRead()
       })
 
-    const onVisible = () => { if (document.visibilityState === 'visible') markRead() }
-    document.addEventListener('visibilitychange', onVisible)
     return () => {
       alive = false
-      document.removeEventListener('visibilitychange', onVisible)
       supabase.removeChannel(channel)
     }
-  }, [active?.id, active?.other?.id, session?.user?.id, messages.length])
+  }, [active?.id, active?.other?.id, session?.user?.id])
+
+  useEffect(() => {
+    if (!active?.id || !session?.user?.id) return
+    const markRead = async () => {
+      if (document.visibilityState === 'visible') {
+        await supabase.rpc('mark_conversation_read', { p_conversation_id: active.id })
+      }
+    }
+    markRead()
+    const onVisible = () => { if (document.visibilityState === 'visible') markRead() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [active?.id, session?.user?.id, messages.length])
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
