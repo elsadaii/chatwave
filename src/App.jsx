@@ -137,15 +137,24 @@ export default function App() {
 
   useEffect(() => {
     if (!active?.id || !session?.user?.id) return
+    let alive = true
+    let marking = false
     const markRead = async () => {
-      if (document.visibilityState === 'visible') {
-        await supabase.rpc('mark_conversation_read', { p_conversation_id: active.id })
-      }
+      if (document.visibilityState !== 'visible' || marking) return
+      marking = true
+      const { error } = await supabase.rpc('mark_conversation_read', { p_conversation_id: active.id })
+      marking = false
+      if (alive && error) setNotice('Gagal memperbarui status dibaca: ' + error.message)
     }
     markRead()
     const onVisible = () => { if (document.visibilityState === 'visible') markRead() }
     document.addEventListener('visibilitychange', onVisible)
-    return () => document.removeEventListener('visibilitychange', onVisible)
+    const readTimer = window.setInterval(markRead, 4000)
+    return () => {
+      alive = false
+      window.clearInterval(readTimer)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [active?.id, session?.user?.id, messages.length])
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
