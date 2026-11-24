@@ -183,23 +183,27 @@ export default function App() {
   }, [session?.user?.id])
 
   useEffect(() => {
-    if (!active?.id || !session?.user?.id) { chatChannelRef.current = null; setPeerOnline(false); setPeerTyping(false); return }
-    const peerId = active.other?.id
-    const channel = supabase.channel('presence-' + active.id, { config: { presence: { key: session.user.id } } })
+    if (!session?.user?.id) return
+    const channel = supabase.channel('chatwave-online', { config: { presence: { key: session.user.id } } })
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState()
-        setPeerOnline(Object.values(state).flat().some(p => p.user_id === peerId))
+        setPeerOnline(Object.values(state).flat().some(p => p.user_id === active?.other?.id))
       })
+      .subscribe(async status => {
+        if (status === 'SUBSCRIBED') await channel.track({ user_id: session.user.id, display_name: displayName(profile) })
+      })
+    return () => { supabase.removeChannel(channel); setPeerOnline(false) }
+  }, [session?.user?.id, active?.other?.id])
+
+  useEffect(() => {
+    if (!active?.id || !session?.user?.id) { chatChannelRef.current = null; setPeerTyping(false); return }
+    const peerId = active.other?.id
+    const channel = supabase.channel('typing-' + active.id)
       .on('broadcast', { event: 'typing' }, ({ payload }) => {
         if (payload?.user_id === peerId) setPeerTyping(!!payload.typing)
       })
-      .subscribe(async status => {
-        if (status === 'SUBSCRIBED') {
-          chatChannelRef.current = channel
-          await channel.track({ user_id: session.user.id, display_name: displayName(profile) })
-        }
-      })
-    return () => { chatChannelRef.current = null; supabase.removeChannel(channel) }
+      .subscribe(status => { if (status === 'SUBSCRIBED') chatChannelRef.current = channel })
+    return () => { chatChannelRef.current = null; supabase.removeChannel(channel); setPeerTyping(false) }
   }, [active?.id, active?.other?.id, session?.user?.id])
 
   async function attachSignedMedia(rows) {
