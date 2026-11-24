@@ -134,8 +134,15 @@ export default function App() {
     if (!content || !active) return
     setDraft('')
     const { error } = await supabase.from('messages').insert({ conversation_id: active.id, sender_id: session.user.id, body: content, message_type: 'text' })
-    if (error) { setDraft(content); setNotice(error.message) }
-    else loadConversations()
+    if (error) {
+      setDraft(content)
+      setNotice(error.message)
+    } else {
+      // Reload from the database so the sender sees the message even if
+      // the realtime event is delayed or not delivered to this client.
+      await loadMessages(active.id)
+      await loadConversations()
+    }
   }
 
   const displayName = p => p?.display_name || p?.username || p?.email || 'Pengguna ChatWave'
