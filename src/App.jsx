@@ -59,14 +59,47 @@ export default function App() {
   }
 
   useEffect(() => {
-    if (!active?.id) { setMessages([]); return }
-    loadMessages(active.id)
+    if (!active?.id || !session?.user?.id) { setMessages([]); return }
+    let alive = true
+    let refreshing = false
+    const refreshMessages = async () => {
+      if (!alive || refreshing) return
+      refreshing = true
+      try {
+        const { data, error } = await supabase.from('messages').select('*')
+          .eq('conversation_id', active.id).order('created_at', { ascending: true }).limit(200)
+        if (alive && !error) setMessages(data || [])
+      } finally {
+        refreshing = false
+      }
+    }
+
+    refreshMessages()
     const channel = supabase.channel('chat-' + active.id)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: 'conversation_id=eq.' + active.id }, payload => {
-        if (payload.eventType === 'INSERT') setMessages(old => old.some(m => m.id === payload.new.id) ? old : [...old, payload.new])
-      }).subscribe()
-    return () => { supabase.removeChannel(channel) }
-  }, [active?.id])
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'messages',
+        filter: 'conversation_id=eq.' + active.id
+      }, payload => {
+        if (!alive) return
+        if (payload.eventType === 'INSERT') {
+          setMessages(old => old.some(m => m.id === payload.new.id) ? old : [...old, payload.new])
+          loadConversations()
+        } else {
+          refreshMessages()
+        }
+      })
+      .subscribe(status => {
+        if (status === 'SUBSCRIBED') refreshMessages()
+      })
+
+    // Safety sync: recover messages if a WebSocket event is missed or reconnects.
+    const syncTimer = window.setInterval(refreshMessages, 3000)
+    return () => {
+      alive = false
+      window.clearInterval(syncTimer)
+      supabase.removeChannel(channel)
+    }
+  }, [active?.id, session?.user?.id])
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
