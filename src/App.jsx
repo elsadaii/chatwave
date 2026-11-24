@@ -80,7 +80,7 @@ export default function App() {
     e.preventDefault(); setAuthBusy(true); setNotice('')
     try {
       if (authMode === 'signup') {
-        const { error } = await supabase.auth.signUp({ email, password, options: { data: { display_name: fullName } } })
+        const { error } = await supabase.auth.signUp({ email, password, options: { data: { name: fullName } } })
         if (error) throw error
         setNotice('Pendaftaran berhasil. Jika konfirmasi email aktif, cek kotak masuk Anda.')
       } else {
