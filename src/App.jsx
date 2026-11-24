@@ -112,10 +112,16 @@ export default function App() {
     }
     const { data: conv, error } = await supabase.from('conversations').insert({ kind: 'direct', created_by: session.user.id }).select().single()
     if (error) { setNotice(error.message); return }
-    const { error: memberError } = await supabase.from('conversation_members').insert([
-      { conversation_id: conv.id, user_id: session.user.id },
-      { conversation_id: conv.id, user_id: person.id }
-    ])
+    // Add the creator first so the conversation becomes visible to its creator
+    // under the member-only SELECT policy before adding the other participant.
+    const { error: selfMemberError } = await supabase.from('conversation_members').insert({
+      conversation_id: conv.id, user_id: session.user.id
+    })
+    if (selfMemberError) { setNotice(selfMemberError.message); return }
+
+    const { error: memberError } = await supabase.from('conversation_members').insert({
+      conversation_id: conv.id, user_id: person.id
+    })
     if (memberError) { setNotice(memberError.message); return }
     const next = { ...conv, other: person }
     setActive(next); setShowSearch(false); setSearch('')
