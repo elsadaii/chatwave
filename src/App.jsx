@@ -73,6 +73,7 @@ export default function App() {
 
   useEffect(() => {
     initialChatScrollRef.current = active?.id || null
+    setMessages([])
   }, [active?.id])
 
   useEffect(() => {
