@@ -3,6 +3,8 @@
   "appName": "ChatWave",
   "webDir": "dist",
   "server": {
+    "url": "https://elsadaii.github.io/chatwave/",
+    "cleartext": false,
     "androidScheme": "https"
   }
 }
