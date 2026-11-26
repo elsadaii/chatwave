@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from './supabase'
-import { MessageCircle, Search, Send, LogOut, UserRound, Plus, ArrowLeft, Phone, Video, Paperclip, Smile, MoreVertical, Check, CheckCheck, Settings, X, Save, Image as ImageIcon, FileText, Upload, Volume2, PhoneCall, CircleDot, History, Camera, FolderOpen, MapPin, Images, Reply, Pencil, Trash2, Mic, Square } from 'lucide-react'
+import { MessageCircle, Search, Send, LogOut, UserRound, Plus, ArrowLeft, Phone, Video, Paperclip, Smile, MoreVertical, Check, CheckCheck, Settings, X, Save, Image as ImageIcon, FileText, Upload, Volume2, PhoneCall, CircleDot, History, Camera, FolderOpen, MapPin, Images, Reply, Pencil, Trash2, Mic, Square, Users, UserPlus } from 'lucide-react'
 import { registerPlugin } from '@capacitor/core'
 import { App as CapacitorApp } from '@capacitor/app'
 
@@ -36,6 +36,10 @@ export default function App() {
   const [search, setSearch] = useState('')
   const [people, setPeople] = useState([])
   const [showSearch, setShowSearch] = useState(false)
+  const [showGroupComposer, setShowGroupComposer] = useState(false)
+  const [groupTitle, setGroupTitle] = useState('')
+  const [groupMemberIds, setGroupMemberIds] = useState([])
+  const [groupBusy, setGroupBusy] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [showChatInfo, setShowChatInfo] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
@@ -260,24 +264,43 @@ export default function App() {
   }
 
   async function loadConversations() {
-    const { data: memberships, error } = await supabase.from('conversation_members').select('conversation_id').eq('user_id', session.user.id)
+    const { data: memberships, error } = await supabase.from('conversation_members')
+      .select('conversation_id').eq('user_id', session.user.id)
     if (error) { setNotice(error.message); return }
-    const ids = (memberships || []).map(x => x.conversation_id)
+    const ids = (memberships || []).map(item => item.conversation_id)
     if (!ids.length) { setConversations([]); return }
-    const { data: rows, error: convError } = await supabase.from('conversations').select('*').in('id', ids).order('updated_at', { ascending: false })
+    const { data: rows, error: convError } = await supabase.from('conversations')
+      .select('*').in('id', ids).order('updated_at', { ascending: false })
     if (convError) { setNotice(convError.message); return }
-    const enriched = await Promise.all((rows || []).map(async c => {
-      const { data: members } = await supabase.from('conversation_members').select('user_id').eq('conversation_id', c.id)
-      const otherId = (members || []).map(m => m.user_id).find(id => id !== session.user.id)
-      let other = null
-      if (otherId) {
-        const { data } = await supabase.from('profiles').select('id,display_name,username,avatar_url,last_seen_at').eq('id', otherId).maybeSingle()
-        other = data
+    const enriched = await Promise.all((rows || []).map(async conversation => {
+      const [{ data: memberRows }, { data: last }] = await Promise.all([
+        supabase.from('conversation_members').select('user_id,role,last_read_at')
+          .eq('conversation_id', conversation.id),
+        supabase.from('messages').select('body,created_at,sender_id,message_type')
+          .eq('conversation_id', conversation.id).order('created_at', { ascending: false }).limit(1).maybeSingle()
+      ])
+      const memberIds = (memberRows || []).map(item => item.user_id)
+      const { data: profiles } = memberIds.length
+        ? await supabase.from('profiles').select('id,display_name,username,avatar_url,last_seen_at')
+            .in('id', memberIds)
+        : { data: [] }
+      const profileById = new Map((profiles || []).map(item => [item.id, item]))
+      const members = (memberRows || []).map(member => ({
+        ...member, profile: profileById.get(member.user_id) || null
+      }))
+      const otherId = conversation.kind === 'direct'
+        ? memberIds.find(id => id !== session.user.id)
+        : null
+      const other = otherId ? profileById.get(otherId) || null : null
+      const lastMember = last?.sender_id ? members.find(member => member.user_id === last.sender_id) : null
+      return {
+        ...conversation, members, other,
+        last: last ? { ...last, sender_name: lastMember?.profile?.display_name || lastMember?.profile?.username || null } : null
       }
-      const { data: last } = await supabase.from('messages').select('body,created_at').eq('conversation_id', c.id).order('created_at', { ascending: false }).limit(1).maybeSingle()
-      return { ...c, other, last }
     }))
-    setConversations(enriched.sort((a, b) => new Date(b.last?.created_at || b.updated_at || 0) - new Date(a.last?.created_at || a.updated_at || 0)))
+    setConversations(enriched.sort((a, b) =>
+      new Date(b.last?.created_at || b.updated_at || 0) - new Date(a.last?.created_at || a.updated_at || 0)
+    ))
   }
 
   // Keep the conversation list live even while no chat room is open.
@@ -971,31 +994,92 @@ export default function App() {
 
   async function startChat(person) {
     setNotice('')
-    const { data: mine } = await supabase.from('conversation_members').select('conversation_id').eq('user_id', session.user.id)
-    const ids = (mine || []).map(x => x.conversation_id)
+    const { data: mine, error: mineError } = await supabase.from('conversation_members')
+      .select('conversation_id').eq('user_id', session.user.id)
+    if (mineError) { setNotice(mineError.message); return }
+    const ids = (mine || []).map(item => item.conversation_id)
     if (ids.length) {
-      const { data: theirs } = await supabase.from('conversation_members').select('conversation_id').eq('user_id', person.id).in('conversation_id', ids)
-      if (theirs?.length) {
-        const { data: found } = await supabase.from('conversations').select('*').eq('id', theirs[0].conversation_id).maybeSingle()
-        if (found) { setActive({ ...found, other: person }); setShowSearch(false); setSearch(''); return }
+      const { data: theirs, error: theirsError } = await supabase.from('conversation_members')
+        .select('conversation_id').eq('user_id', person.id).in('conversation_id', ids)
+      if (theirsError) { setNotice(theirsError.message); return }
+      const sharedIds = (theirs || []).map(item => item.conversation_id)
+      if (sharedIds.length) {
+        const { data: found } = await supabase.from('conversations').select('*')
+          .in('id', sharedIds).eq('kind', 'direct').limit(1).maybeSingle()
+        if (found) {
+          setActive({ ...found, other: person })
+          setShowSearch(false); setSearch('')
+          return
+        }
       }
     }
-    const { data: conv, error } = await supabase.from('conversations').insert({ kind: 'direct', created_by: session.user.id }).select().single()
+    const { data: conv, error } = await supabase.from('conversations')
+      .insert({ kind: 'direct', created_by: session.user.id }).select().single()
     if (error) { setNotice(error.message); return }
-    // Add the creator first so the conversation becomes visible to its creator
-    // under the member-only SELECT policy before adding the other participant.
     const { error: selfMemberError } = await supabase.from('conversation_members').insert({
-      conversation_id: conv.id, user_id: session.user.id
+      conversation_id: conv.id, user_id: session.user.id, role: 'owner'
     })
     if (selfMemberError) { setNotice(selfMemberError.message); return }
-
     const { error: memberError } = await supabase.from('conversation_members').insert({
-      conversation_id: conv.id, user_id: person.id
+      conversation_id: conv.id, user_id: person.id, role: 'member'
     })
-    if (memberError) { setNotice(memberError.message); return }
-    const next = { ...conv, other: person }
+    if (memberError) {
+      await supabase.from('conversations').delete().eq('id', conv.id)
+      setNotice(memberError.message); return
+    }
+    const next = { ...conv, other: person, members: [
+      { user_id: session.user.id, role: 'owner', profile },
+      { user_id: person.id, role: 'member', profile: person }
+    ] }
     setActive(next); setShowSearch(false); setSearch('')
     await loadConversations()
+  }
+
+  function toggleGroupMember(person) {
+    setGroupMemberIds(current => current.includes(person.id)
+      ? current.filter(id => id !== person.id)
+      : current.length >= 20 ? current : [...current, person.id])
+  }
+
+  async function createGroupConversation() {
+    const title = groupTitle.trim()
+    if (title.length < 2 || title.length > 40) {
+      setNotice('Nama grup harus 2–40 karakter.')
+      return
+    }
+    if (groupMemberIds.length < 2) {
+      setNotice('Pilih minimal 2 anggota selain Anda untuk membuat grup.')
+      return
+    }
+    if (groupBusy) return
+    setGroupBusy(true)
+    setNotice('')
+    let createdConversationId = null
+    try {
+      const { data: conversation, error: conversationError } = await supabase.from('conversations')
+        .insert({ kind: 'group', title, created_by: session.user.id }).select().single()
+      if (conversationError) throw conversationError
+      createdConversationId = conversation.id
+      const participantRows = [
+        { conversation_id: conversation.id, user_id: session.user.id, role: 'owner' },
+        ...groupMemberIds.map(userId => ({ conversation_id: conversation.id, user_id: userId, role: 'member' }))
+      ]
+      const { error: membersError } = await supabase.from('conversation_members').insert(participantRows)
+      if (membersError) throw membersError
+      const chosenProfiles = people.filter(person => groupMemberIds.includes(person.id))
+      const members = [
+        { user_id: session.user.id, role: 'owner', profile },
+        ...chosenProfiles.map(person => ({ user_id: person.id, role: 'member', profile: person }))
+      ]
+      setActive({ ...conversation, members, other: null })
+      setGroupTitle(''); setGroupMemberIds([])
+      setShowGroupComposer(false); setShowSearch(false); setSearch('')
+      await loadConversations()
+      setNotice('Grup berhasil dibuat.')
+    } catch (error) {
+      if (createdConversationId) await supabase.from('conversations').delete().eq('id', createdConversationId)
+      setNotice('Gagal membuat grup: ' + (error.message || 'kesalahan'))
+    } finally { setGroupBusy(false) }
   }
 
 
