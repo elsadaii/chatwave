@@ -193,6 +193,19 @@ export default function App() {
     return () => { supabase.removeChannel(channel); setPeerOnline(false) }
   }, [session?.user?.id, active?.other?.id])
 
+  // Keep the other user's last-seen timestamp fresh via profile realtime updates.
+  useEffect(() => {
+    const peerId = active?.other?.id
+    if (!peerId || !session?.user?.id) return
+    const channel = supabase.channel('last-seen-' + peerId)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: 'id=eq.' + peerId }, payload => {
+        const updated = payload.new
+        setActive(old => old?.other?.id === peerId ? { ...old, other: { ...old.other, last_seen_at: updated.last_seen_at, display_name: updated.display_name, username: updated.username, avatar_url: updated.avatar_url } } : old)
+        setConversations(old => old.map(c => c.other?.id === peerId ? { ...c, other: { ...c.other, last_seen_at: updated.last_seen_at, display_name: updated.display_name, username: updated.username, avatar_url: updated.avatar_url } } : c))
+      }).subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [active?.other?.id, session?.user?.id])
+
   useEffect(() => {
     if (!active?.id || !session?.user?.id) { chatChannelRef.current = null; setPeerTyping(false); return }
     const peerId = active.other?.id
