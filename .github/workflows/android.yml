@@ -55,6 +55,67 @@ jobs:
               s = s[:idx] + permissions + s[idx:]
           p.write_text(s)
           PY
+      - name: Add native Android audio route selector
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          base = Path('android/app/src/main/java/com/chatwave/app')
+          base.mkdir(parents=True, exist_ok=True)
+
+          plugin = """package com.chatwave.app;
+
+          import android.media.AudioDeviceInfo;
+          import android.media.AudioManager;
+          import android.os.Build;
+          import com.getcapacitor.Plugin;
+          import com.getcapacitor.PluginCall;
+          import com.getcapacitor.PluginMethod;
+          import com.getcapacitor.annotation.CapacitorPlugin;
+
+          @CapacitorPlugin(name = "AudioRoute")
+          public class AudioRoutePlugin extends Plugin {
+              @PluginMethod
+              public void setRoute(PluginCall call) {
+                  String route = call.getString("route", "earpiece");
+                  if (!"speaker".equals(route) && !"earpiece".equals(route)) {
+                      call.reject("Pilihan jalur audio tidak dikenal.");
+                      return;
+                  }
+                  AudioManager manager = (AudioManager) getContext().getSystemService(android.content.Context.AUDIO_SERVICE);
+                  if (manager == null) {
+                      call.reject("Audio Android tidak tersedia.");
+                      return;
+                  }
+                  manager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                      int wanted = "speaker".equals(route)
+                          ? AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+                          : AudioDeviceInfo.TYPE_BUILTIN_EARPIECE;
+                      AudioDeviceInfo target = null;
+                      for (AudioDeviceInfo device : manager.getAvailableCommunicationDevices()) {
+                          if (device.getType() == wanted) { target = device; break; }
+                      }
+                      if (target == null || !manager.setCommunicationDevice(target)) {
+                          call.reject("Perangkat audio yang dipilih tidak tersedia.");
+                          return;
+                      }
+                  } else {
+                      manager.setSpeakerphoneOn("speaker".equals(route));
+                  }
+                  call.resolve();
+              }
+          }
+          """
+          (base / 'AudioRoutePlugin.java').write_text(plugin)
+
+          main = base / 'MainActivity.java'
+          source = main.read_text()
+          if 'AudioRoutePlugin' not in source:
+              source = source.replace('import com.getcapacitor.BridgeActivity;', 'import com.getcapacitor.BridgeActivity;\\nimport android.os.Bundle;')
+              source = source.replace('public class MainActivity extends BridgeActivity {', 'public class MainActivity extends BridgeActivity {\\n    @Override\\n    public void onCreate(Bundle savedInstanceState) {\\n        registerPlugin(AudioRoutePlugin.class);\\n        super.onCreate(savedInstanceState);\\n    }')
+              main.write_text(source)
+          PY
       - name: Build debug APK
         working-directory: android
         run: ./gradlew assembleDebug
