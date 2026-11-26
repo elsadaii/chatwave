@@ -11,3 +11,9 @@
 .message-area{min-height:0;overscroll-behavior:contain}
 .composer{position:relative;z-index:4;flex:none}
 @media(max-width:700px){.chat-header{top:0;min-height:66px}}
+
+/* Fix clipped chat header */
+.chat-header{height:auto;min-height:76px;flex-shrink:0;overflow:visible;box-sizing:border-box;padding-top:max(12px,env(safe-area-inset-top));padding-bottom:12px}
+.chat-panel{height:100%;min-height:0}
+.message-area{flex:1;min-height:0}
+@media(max-width:700px){.chat-header{min-height:66px;padding-top:max(10px,env(safe-area-inset-top));padding-bottom:10px}.chat-person{min-width:0}.chat-person b,.chat-person small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
