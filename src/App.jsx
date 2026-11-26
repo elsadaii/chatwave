@@ -745,8 +745,8 @@ export default function App() {
     const content = draft.trim()
     if (!content || !active) return
     if (editingMessage) {
-      const { error } = await supabase.from('messages').update({ body: content, edited_at: new Date().toISOString() }).eq('id', editingMessage.id).eq('sender_id', session.user.id)
-      if (error) { setNotice('Gagal mengedit pesan: ' + error.message); return }
+      const { data: updatedMessage, error } = await supabase.from('messages').update({ body: content, edited_at: new Date().toISOString() }).eq('id', editingMessage.id).eq('sender_id', session.user.id).select('id').maybeSingle()
+      if (error || !updatedMessage) { setNotice('Gagal mengedit pesan: ' + (error?.message || 'Pesan tidak ditemukan atau bukan milik Anda.')); return }
       setEditingMessage(null); setDraft('')
       await loadMessages(active.id); await loadConversations()
       setNotice('Pesan berhasil diedit.')
@@ -773,11 +773,11 @@ export default function App() {
   async function deleteMessageForEveryone(message) {
     setOpenMessageMenu(null)
     if (!window.confirm('Tarik pesan ini untuk semua orang?')) return
-    const { error } = await supabase.from('messages').update({
+    const { data: deletedMessage, error } = await supabase.from('messages').update({
       message_type: 'system', body: 'Pesan ini telah dihapus', media_path: null,
       media_mime_type: null, media_size_bytes: null, deleted_at: new Date().toISOString()
-    }).eq('id', message.id).eq('sender_id', session.user.id)
-    if (error) { setNotice('Gagal menarik pesan: ' + error.message); return }
+    }).eq('id', message.id).eq('sender_id', session.user.id).select('id').maybeSingle()
+    if (error || !deletedMessage) { setNotice('Gagal menarik pesan: ' + (error?.message || 'Pesan tidak ditemukan atau bukan milik Anda.')); return }
     if (message.media_path) {
       const { error: storageError } = await supabase.storage.from('chat-media').remove([message.media_path])
       if (storageError) console.warn('Media pesan yang ditarik belum dapat dibersihkan:', storageError.message)
