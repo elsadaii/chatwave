@@ -474,6 +474,11 @@ export default function App() {
       // the realtime event is delayed or not delivered to this client.
       await loadMessages(active.id)
       await loadConversations()
+      // After sending, move the viewport to the newly sent message.
+      window.setTimeout(() => {
+        const area = messageAreaRef.current
+        if (area) area.scrollTo({ top: area.scrollHeight, behavior: 'smooth' })
+      }, 80)
     }
   }
 
