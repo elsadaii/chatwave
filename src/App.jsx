@@ -478,6 +478,33 @@ export default function App() {
     }).subscribe()
     return ()=>supabase.removeChannel(channel)
   },[session?.user?.id])
+  // Keep both devices in sync when either participant accepts or ends a call.
+  useEffect(()=>{
+    if(!call?.id||!session?.user?.id)return
+    let alive=true
+    const applyCallStatus=row=>{
+      if(!alive||!row||row.id!==call.id)return
+      if(row.status==='accepted'){
+        setCall(old=>old?.id===row.id?{...old,...row}:old)
+        setCallStatus(old=>old==='Panggilan masuk'?'Menghubungkan...':old)
+      }else if(['ended','declined','missed'].includes(row.status)){
+        cleanupCall()
+        setNotice(row.status==='declined'?'Panggilan ditolak oleh pengguna lain.':'Panggilan telah berakhir.')
+      }else{
+        setCall(old=>old?.id===row.id?{...old,...row}:old)
+      }
+    }
+    const channel=supabase.channel('call-status-'+call.id)
+      .on('postgres_changes',{event:'UPDATE',schema:'public',table:'calls',filter:'id=eq.'+call.id},payload=>applyCallStatus(payload.new))
+      .subscribe()
+    const sync=async()=>{
+      const {data,error}=await supabase.from('calls').select('*').eq('id',call.id).maybeSingle()
+      if(alive&&!error&&data)applyCallStatus(data)
+    }
+    sync()
+    const timer=window.setInterval(sync,2000)
+    return()=>{alive=false;window.clearInterval(timer);supabase.removeChannel(channel)}
+  },[call?.id,session?.user?.id])
   const offerHandledRef=useRef(false)
   async function processCallSignal(v,senderId){
     const pc=rtcRef.current;if(!pc||senderId===session.user.id)return
@@ -495,7 +522,7 @@ export default function App() {
   async function flushIce(pc){const pending=pendingIceRef.current.splice(0);for(const candidate of pending){try{await pc.addIceCandidate(candidate)}catch(e){console.warn('ICE candidate',e)}}}
   async function setupRtc(row){pendingIceRef.current=[];const pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]});rtcRef.current=pc;pc.onicecandidate=e=>{if(e.candidate&&row)supabase.from('call_signals').insert({call_id:row.id,sender_id:session.user.id,payload:{candidate:e.candidate}})};pc.ontrack=e=>{const audio=audioRef.current;if(audio){audio.srcObject=e.streams[0];audio.autoplay=true;audio.playsInline=true;audio.play().catch(()=>setNotice('Audio terblokir browser. Ketuk layar atau tombol panggilan untuk mengaktifkan suara.'))}};pc.oniceconnectionstatechange=()=>{const s=pc.iceConnectionState;if(s==='connected'||s==='completed')setCallStatus('Terhubung');else if(s==='checking')setCallStatus('Memeriksa jalur audio...');else if(s==='failed')setCallStatus('Jalur audio gagal (ICE)');else if(s==='disconnected')setCallStatus('Jaringan terputus, mencoba menyambung...')};pc.onconnectionstatechange=()=>{if(pc.connectionState==='connected')setCallStatus('Terhubung');else if(pc.connectionState==='failed')setCallStatus('Koneksi WebRTC gagal');else if(pc.connectionState==='disconnected')setCallStatus('Koneksi terputus')};pc.onicecandidateerror=e=>setNotice('ICE error '+e.errorCode+': '+(e.errorText||'server STUN tidak merespons'));const stream=await navigator.mediaDevices.getUserMedia({audio:true});stream.getTracks().forEach(t=>pc.addTrack(t,stream));return pc}
   async function startCall(){try{offerHandledRef.current=false;seenSignalIdsRef.current=new Set();if(!navigator.mediaDevices?.getUserMedia)throw new Error('HTTPS dan izin mikrofon diperlukan');const {data:row,error}=await supabase.from('calls').insert({conversation_id:active.id,started_by:session.user.id,call_type:'voice',status:'ringing'}).select().single();if(error)throw error;setCall(row);setCallStatus('Memanggil...');setCallSeconds(0);const pc=await setupRtc(row);const offer=await pc.createOffer();await pc.setLocalDescription(offer);await waitForIceGathering(pc);const {error:signalError}=await supabase.from('call_signals').insert({call_id:row.id,sender_id:session.user.id,payload:pc.localDescription});if(signalError)throw signalError}catch(e){setNotice('Panggilan gagal: '+e.message);cleanupCall()}}
-  async function acceptCall(){try{seenSignalIdsRef.current=new Set();if(!navigator.mediaDevices?.getUserMedia)throw new Error('HTTPS dan izin mikrofon diperlukan');offerHandledRef.current=false;await supabase.from('calls').update({status:'accepted'}).eq('id',call.id);setCallStatus('Menghubungkan...');setCallSeconds(0);await setupRtc(call);const {data:signals,error}=await supabase.from('call_signals').select('*').eq('call_id',call.id).order('created_at');if(error)throw error;const offerRow=(signals||[]).find(s=>s.sender_id!==session.user.id&&s.payload?.type==='offer');if(offerRow)await processCallSignal(offerRow.payload,offerRow.sender_id)}catch(e){setNotice('Gagal menerima: '+e.message)}}
+  async function acceptCall(){try{seenSignalIdsRef.current=new Set();if(!navigator.mediaDevices?.getUserMedia)throw new Error('HTTPS dan izin mikrofon diperlukan');offerHandledRef.current=false;const {error:acceptError}=await supabase.from('calls').update({status:'accepted'}).eq('id',call.id);if(acceptError)throw acceptError;setCall(old=>old?.id===call.id?{...old,status:'accepted'}:old);setCallStatus('Menghubungkan...');setCallSeconds(0);await setupRtc(call);const {data:signals,error}=await supabase.from('call_signals').select('*').eq('call_id',call.id).order('created_at');if(error)throw error;const offerRow=(signals||[]).find(s=>s.sender_id!==session.user.id&&s.payload?.type==='offer');if(offerRow)await processCallSignal(offerRow.payload,offerRow.sender_id)}catch(e){setNotice('Gagal menerima: '+e.message)}}
   async function endCall(status='ended'){if(call)await supabase.from('calls').update({status,ended_at:new Date().toISOString()}).eq('id',call.id);cleanupCall()}
   function cleanupCall(){offerHandledRef.current=false;seenSignalIdsRef.current=new Set();pendingIceRef.current=[];rtcRef.current?.getSenders().forEach(s=>s.track?.stop());rtcRef.current?.close();rtcRef.current=null;if(audioRef.current)audioRef.current.srcObject=null;setCall(null);setCallStatus('');setCallMuted(false);setCallSeconds(0)}
   function toggleMute(){const track=rtcRef.current?.getSenders().find(s=>s.track?.kind==='audio')?.track;if(track){track.enabled=!track.enabled;setCallMuted(!track.enabled)}}
