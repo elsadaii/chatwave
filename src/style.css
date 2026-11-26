@@ -318,3 +318,77 @@ html.native-app #root{
 .chat-info-dot{width:8px;height:8px;border-radius:50%;background:#718d83}
 .chat-info-dot.online{background:#53d4a6;box-shadow:0 0 0 4px #53d4a61c}
 .chat-info-done{width:100%;margin-top:22px;padding:11px;border:1px solid #2d6757;border-radius:11px;background:#143a30;color:#8de5c8;font-weight:700;font-size:12px}
+
+
+/* ChatWave Status list */
+.status-header-actions{display:flex;align-items:center;gap:7px}
+.status-header-actions button{display:inline-flex;align-items:center;gap:5px;padding:7px 10px;border:1px solid #285648;border-radius:9px;background:#14372e;color:#8fe4c9;font-size:11px;font-weight:700}
+.status-header-actions button:disabled{opacity:.5}
+.status-list{display:flex;flex:1;min-height:0;flex-direction:column;overflow:auto;padding:4px 12px 16px}
+.status-row{width:100%;display:flex;align-items:center;gap:12px;padding:11px 8px;border:0;border-bottom:1px solid #1c3932;background:transparent;color:#eaf5f2;text-align:left}
+.status-row:hover{background:#112b25}
+.status-avatar-ring{width:50px;height:50px;flex:0 0 50px;display:grid;place-items:center;border:2px solid #4a796c;border-radius:50%;padding:3px;background:#142e27;color:#a7e8d2;font-size:18px;font-weight:800}
+.status-avatar-ring.unseen{border-color:#44d5aa}
+.status-avatar-ring img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.status-row-info{display:grid;gap:3px;flex:1;min-width:0}
+.status-row-info b{font-size:12px;color:#e5f3ec}
+.status-row-info small{font-size:10px;color:#83a89a}
+.status-row-info span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#78998c;font-size:10px}
+.status-add-mini{display:grid;place-items:center;width:29px;height:29px;flex:none;border:1px solid #2f6e5a;border-radius:50%;background:#164234;color:#8ce2c6}
+.status-first-add{margin-top:7px;padding:10px 15px;border:1px solid #2c6a56;border-radius:11px;background:#143a30;color:#8de5c8;font-size:12px;font-weight:700}
+
+/* Status create dialog */
+.status-composer-overlay{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:18px;background:#020b09d9;backdrop-filter:blur(8px)}
+.status-composer-card{width:min(100%,440px);padding:20px;border:1px solid #2b5549;border-radius:20px;background:linear-gradient(155deg,#102a25,#0b1d1a);box-shadow:0 25px 90px #000a}
+.status-composer-card>header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:15px}
+.status-composer-card>header span{font-size:9px;letter-spacing:2px;color:#55c9a7;font-weight:800}
+.status-composer-card>header h2{margin:5px 0 0;color:#edf8f3;font:700 19px Manrope}
+.status-composer-card>header button{width:34px;height:34px;display:grid;place-items:center;border:0;border-radius:9px;background:#193a32;color:#a8c9bd}
+.status-composer-card textarea{width:100%;min-height:130px;resize:vertical;padding:14px;border:1px solid #2b4e44;border-radius:12px;outline:0;background:#091b17;color:#eef8f3;font:13px/1.55 'DM Sans',sans-serif}
+.status-composer-card textarea:focus{border-color:#49d3ad}
+.status-composer-tools{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
+.status-composer-tools button{display:inline-flex;align-items:center;gap:7px;padding:9px 11px;border:1px solid #2c6655;border-radius:10px;background:#143a30;color:#8de5c8;font-size:11px;font-weight:700}
+.status-composer-tools small{color:#78998c;font-size:10px}
+.status-selected-file{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;padding:9px 11px;border:1px solid #285247;border-radius:9px;background:#112d25;color:#c7e5d9;font-size:11px}
+.status-selected-file span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.status-selected-file button{display:grid;place-items:center;flex:none;border:0;background:transparent;color:#9bbcaf}
+.status-color-picker{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:16px}
+.status-color-picker span{margin-right:4px;color:#9cb8ad;font-size:11px}
+.status-color-picker button{width:25px;height:25px;border:2px solid transparent;border-radius:50%}
+.status-color-picker button.selected{outline:2px solid #a5f1d8;outline-offset:2px}
+.status-composer-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+.status-composer-actions button{padding:10px 14px;border:1px solid #31574b;border-radius:10px;background:#122b24;color:#a8c9bd;font-size:11px;font-weight:700}
+.status-composer-actions button:last-child{border-color:#2b8a6c;background:#25b88f;color:#06231b}
+.status-composer-actions button:disabled{opacity:.45}
+.status-expiry-note{display:block;margin-top:12px;color:#6f9184;font-size:10px;text-align:right}
+
+/* Full-screen Status viewer */
+.status-view-overlay{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:12px;background:#020907ed}
+.status-viewer{position:relative;width:min(100%,460px);height:min(88dvh,820px);min-height:420px;display:flex;flex-direction:column;overflow:hidden;border:1px solid #31574b;border-radius:20px;color:#eff9f4;box-shadow:0 25px 90px #000b}
+.status-progress{display:flex;gap:4px;padding:12px 12px 0}
+.status-progress span{height:3px;flex:1;border-radius:9px;background:#ffffff40}
+.status-progress span.done{background:#e2fff3}
+.status-viewer>header{position:relative;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 13px}
+.status-view-owner{display:flex;align-items:center;gap:9px;min-width:0}
+.status-view-owner>img,.status-view-owner:not(img){flex:none}
+.status-view-owner>img{width:36px;height:36px;object-fit:cover;border-radius:50%}
+.status-view-owner>div{display:grid;gap:3px;min-width:0}
+.status-view-owner b{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.status-view-owner small{font-size:9px;color:#b7cec3}
+.status-view-actions{display:flex;gap:5px}
+.status-view-actions button{display:grid;place-items:center;width:34px;height:34px;border:0;border-radius:9px;background:#ffffff18;color:#fff}
+.status-view-content{position:relative;z-index:1;display:flex;flex:1;min-height:0;align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:18px}
+.status-view-content>img,.status-view-content>video{display:block;max-width:100%;max-height:100%;object-fit:contain;border-radius:10px}
+.status-text-content{width:100%;padding:30px 18px;color:#fff;font:700 clamp(22px,6vw,32px)/1.35 Manrope;text-align:center;overflow-wrap:anywhere}
+.status-view-content>p{max-width:100%;margin:0;color:#f4fff9;font-size:13px;text-align:center;overflow-wrap:anywhere}
+.status-view-prev,.status-view-next{position:absolute;top:74px;bottom:45px;z-index:2;width:22%;border:0;background:transparent}
+.status-view-prev{left:0}
+.status-view-next{right:0}
+.status-view-prev:disabled,.status-view-next:disabled{cursor:default}
+.status-viewer>footer{position:relative;z-index:3;display:flex;justify-content:space-between;align-items:center;padding:11px 15px;color:#c8e7d9;font-size:10px;background:#05140f35}
+@media(max-width:520px){
+  .status-view-overlay{padding:0}
+  .status-viewer{width:100%;height:100dvh;min-height:0;border:0;border-radius:0}
+  .status-composer-overlay{padding:10px}
+  .status-composer-card{padding:17px}
+}
