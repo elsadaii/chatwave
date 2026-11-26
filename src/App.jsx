@@ -52,6 +52,7 @@ export default function App() {
   const messageAreaRef = useRef(null)
   const initialChatScrollRef = useRef(null)
   const nearBottomRef = useRef(true)
+  const followIncomingRef = useRef(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
@@ -94,6 +95,7 @@ export default function App() {
   useEffect(() => {
     initialChatScrollRef.current = active?.id || null
     nearBottomRef.current = true
+    followIncomingRef.current = false
     setMessages([])
   }, [active?.id])
 
@@ -121,6 +123,15 @@ export default function App() {
       }, payload => {
         if (!alive) return
         if (payload.eventType === 'INSERT') {
+          // Receiver: remember whether they were already at the latest message
+          // at the exact moment the incoming message arrived.
+          if (payload.new.sender_id !== session.user.id) {
+            const area = messageAreaRef.current
+            const atBottom = area
+              ? area.scrollHeight - area.scrollTop - area.clientHeight <= 120
+              : nearBottomRef.current
+            if (atBottom) followIncomingRef.current = true
+          }
           setMessages(old => old.some(m => m.id === payload.new.id) ? old : [...old, payload.new])
           refreshMessages()
           loadConversations()
@@ -326,12 +337,14 @@ export default function App() {
     return () => { window.clearTimeout(t1); window.clearTimeout(t2); window.clearTimeout(t3) }
   }, [active?.id, messages.length])
 
-  // Follow incoming messages only while the user is already at the bottom.
-  // Scrolling up disables this until the user returns near the latest message.
+  // Only the receiver auto-follows a new incoming message, and only if
+  // they were already at the bottom when that message arrived.
   useEffect(() => {
     if (!active?.id || !messages.length || initialChatScrollRef.current === active.id) return
+    if (!followIncomingRef.current) return
+    followIncomingRef.current = false
     const area = messageAreaRef.current
-    if (area && nearBottomRef.current) area.scrollTo({ top: area.scrollHeight, behavior: 'smooth' })
+    if (area) area.scrollTo({ top: area.scrollHeight, behavior: 'smooth' })
   }, [active?.id, messages.length])
 
   function trackMessageScroll() {
