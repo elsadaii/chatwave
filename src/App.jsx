@@ -12,36 +12,6 @@ export default function App() {
     return () => document.documentElement.classList.remove('native-app')
   }, [])
 
-  // Handle Android's hardware/system back button inside the app instead of
-  // letting the WebView close ChatWave while a screen is still open.
-  useEffect(() => {
-    if (!window.Capacitor?.isNativePlatform?.()) return
-    let mounted = true
-    let backListener
-    CapacitorApp.addListener('backButton', () => {
-      if (call) {
-        setNotice('Akhiri panggilan terlebih dahulu untuk kembali.')
-      } else if (showProfile) {
-        setShowProfile(false)
-      } else if (showSearch) {
-        setShowSearch(false)
-        setSearch('')
-      } else if (active) {
-        setActive(null)
-      } else if (homeTab !== 'chat') {
-        setHomeTab('chat')
-      } else {
-        CapacitorApp.exitApp()
-      }
-    }).then(listener => {
-      if (mounted) backListener = listener
-      else listener.remove()
-    }).catch(error => console.warn('Gagal memasang tombol kembali Android:', error))
-    return () => {
-      mounted = false
-      backListener?.remove()
-    }
-  }, [active, call, homeTab, showProfile, showSearch])
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
   const [authMode, setAuthMode] = useState('login')
@@ -90,6 +60,37 @@ export default function App() {
   const initialChatScrollRef = useRef(null)
   const nearBottomRef = useRef(true)
   const followIncomingRef = useRef(false)
+
+  // Handle Android's hardware/system back button inside the app instead of
+  // letting the WebView close ChatWave while a screen is still open.
+  useEffect(() => {
+    if (!window.Capacitor?.isNativePlatform?.()) return
+    let mounted = true
+    let backListener
+    CapacitorApp.addListener('backButton', () => {
+      if (call) {
+        setNotice('Akhiri panggilan terlebih dahulu untuk kembali.')
+      } else if (showProfile) {
+        setShowProfile(false)
+      } else if (showSearch) {
+        setShowSearch(false)
+        setSearch('')
+      } else if (active) {
+        setActive(null)
+      } else if (homeTab !== 'chat') {
+        setHomeTab('chat')
+      } else {
+        CapacitorApp.exitApp()
+      }
+    }).then(listener => {
+      if (mounted) backListener = listener
+      else listener.remove()
+    }).catch(error => console.warn('Gagal memasang tombol kembali Android:', error))
+    return () => {
+      mounted = false
+      backListener?.remove()
+    }
+  }, [active, call, homeTab, showProfile, showSearch])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
