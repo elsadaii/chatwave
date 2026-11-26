@@ -235,7 +235,20 @@ export default function App() {
     nearBottomRef.current = true
     followIncomingRef.current = false
     setMessages([])
+    setReplyTarget(null)
+    setEditingMessage(null)
+    setOpenMessageMenu(null)
+    setDraft('')
   }, [active?.id])
+
+  useEffect(() => {
+    if (!openMessageMenu) return
+    const closeMenuOutside = event => {
+      if (!event.target.closest?.('.message-tools')) setOpenMessageMenu(null)
+    }
+    document.addEventListener('pointerdown', closeMenuOutside)
+    return () => document.removeEventListener('pointerdown', closeMenuOutside)
+  }, [openMessageMenu])
 
   useEffect(() => {
     if (!active?.id || !session?.user?.id) { setMessages([]); return }
