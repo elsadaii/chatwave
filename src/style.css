@@ -42,3 +42,5 @@
 .message-area{flex:1 1 auto!important;min-height:0!important;height:auto!important;max-height:none!important;overflow-y:auto!important}
 .composer{flex:0 0 auto!important;min-height:60px!important}
 @media(max-width:700px){.app-shell{height:100dvh!important}.chat-panel{height:100dvh!important}.chat-header{min-height:66px!important;flex-basis:auto!important;padding-top:max(8px,env(safe-area-inset-top))!important;padding-bottom:8px!important}.chat-person{min-width:0!important;flex:1 1 auto!important}.chat-actions{flex:0 0 auto!important}}
+
+.call-route-controls{display:flex;gap:10px;justify-content:center;margin:20px 0 4px}.call-route-controls button{display:flex;align-items:center;justify-content:center;gap:8px;min-width:116px;border:1px solid #326456;border-radius:13px;padding:11px 14px;background:#102a24;color:#a8cfc0;font-size:12px;font-weight:700}.call-route-controls button.route-active{background:#1b5a49;border-color:#4bd6ae;color:#e4fff4;box-shadow:0 0 0 2px #36c99c22}.call-route-controls button:disabled{opacity:.55}
