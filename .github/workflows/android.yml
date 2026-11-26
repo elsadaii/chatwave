@@ -36,7 +36,7 @@ jobs:
         run: npx cap add android
       - name: Sync web assets
         run: npx cap sync android
-      - name: Add microphone and audio permissions
+      - name: Add camera, microphone and audio permissions
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -47,6 +47,7 @@ jobs:
           permissions = '''
               <uses-permission android:name="android.permission.INTERNET" />
               <uses-permission android:name="android.permission.RECORD_AUDIO" />
+              <uses-permission android:name="android.permission.CAMERA" />
               <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
               <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
               <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
