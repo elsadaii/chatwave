@@ -2,7 +2,7 @@
 
 ChatWave adalah aplikasi chat real-time berbasis React, Vite, Supabase, dan Capacitor untuk web serta Android.
 
-## Fitur yang sudah tersedia
+## Fitur yang tersedia
 
 - Login dan pendaftaran dengan email/password.
 - Profil pengguna: nama tampilan, username, dan foto profil.
@@ -10,8 +10,10 @@ ChatWave adalah aplikasi chat real-time berbasis React, Vite, Supabase, dan Capa
 - Balas pesan, edit pesan sendiri, dan tarik pesan untuk semua orang.
 - Reaksi emoji pada pesan dengan jumlah reaksi yang tersinkron antarpengguna.
 - Kirim foto, video, file, lokasi, serta Voice Note.
-- Status teks, foto, dan video yang berakhir setelah 24 jam; termasuk pencatatan penayangan.
-- Grup chat: buat grup, kelola nama, tambah/keluarkan anggota, ubah anggota menjadi admin, keluar, dan hapus grup sebagai pemilik.
+- Status teks, foto, dan video yang berakhir setelah 24 jam.
+- Privasi Status: hanya kontak yang pernah memiliki percakapan pribadi, atau semua pengguna ChatWave.
+- Pencatatan penayangan Status dan pembatasan akses media Status melalui RLS.
+- Grup chat: buat grup, ubah nama, tambah/keluarkan anggota, jadikan admin, keluar, dan hapus grup oleh pemilik.
 - Panggilan suara/video pribadi melalui WebRTC.
 - Log panggilan dengan tanggal dan durasi.
 - Presence, indikator sedang mengetik, status online/terakhir dilihat, dan indikator pesan dibaca.
@@ -35,11 +37,11 @@ GitHub Actions menjalankan build Android debug dan mengunggah artifact APK. Guna
 
 - Frontend hanya menggunakan Supabase publishable key.
 - Jangan pernah menaruh service-role key di kode frontend.
-- Akses tabel dan file harus tetap dilindungi oleh Row Level Security (RLS).
+- Akses tabel dan file dilindungi oleh Row Level Security (RLS).
+- Media Status mengikuti pengaturan audiens pada setiap Status.
 
 ## Tahap pengembangan berikutnya
 
-- Push notification saat aplikasi tidak sedang terbuka.
+- Push notification saat aplikasi tidak sedang terbuka (memerlukan konfigurasi FCM/Web Push).
 - Panggilan grup.
-- Penguatan privasi dan opsi kontrol siapa yang dapat melihat Status.
 - End-to-end encryption (E2EE) setelah desain kunci, pemulihan akun, dan kompatibilitas multi-perangkat dirancang serta diuji.
