@@ -61,3 +61,31 @@
   .chat-header .chat-person{flex:1 1 0!important}
   .chat-header .chat-person small{font-size:9px!important}
 }
+
+
+/* Temporary text-only notification popup */
+.toast{
+  position:fixed!important;
+  z-index:1000!important;
+  left:50%!important;
+  bottom:92px!important;
+  transform:translateX(-50%)!important;
+  width:max-content!important;
+  max-width:min(88vw,460px)!important;
+  padding:11px 17px!important;
+  border:1px solid #347968!important;
+  border-radius:999px!important;
+  background:rgba(12,39,33,.96)!important;
+  color:#e5f6ef!important;
+  font-size:12px!important;
+  font-weight:500!important;
+  line-height:1.45!important;
+  text-align:center!important;
+  box-shadow:0 8px 28px #0006!important;
+  pointer-events:none!important;
+  animation:chatwave-toast-in .18s ease-out both!important;
+}
+@keyframes chatwave-toast-in{
+  from{opacity:0;transform:translate(-50%,8px)}
+  to{opacity:1;transform:translate(-50%,0)}
+}
