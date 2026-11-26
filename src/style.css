@@ -210,3 +210,10 @@ html.native-app #root{
     position:relative!important;
   }
 }
+
+.call-log-list{display:flex;flex-direction:column;overflow-y:auto;min-height:0;padding:4px 12px 14px;gap:2px}
+.call-log-row{display:flex;align-items:center;gap:11px;padding:12px 5px;border-bottom:1px solid rgba(150,190,175,.10)}
+.call-log-info{display:flex;flex:1;min-width:0;flex-direction:column;gap:3px}
+.call-log-info b{font-size:13px;color:#e2f1eb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.call-log-info small,.call-log-result small{font-size:10px;color:#86a69a}
+.call-log-result{display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-size:11px;color:#b9d8ca;white-space:nowrap}
