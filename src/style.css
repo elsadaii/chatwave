@@ -142,3 +142,9 @@
 .tab-empty{flex:1;min-height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:30px;text-align:center;color:#71958a}
 .tab-empty b{color:#d9eee5;font-size:14px}
 .tab-empty p{max-width:250px;margin:0;color:#809b91;font-size:12px;line-height:1.6}
+
+/* Dock Chat/Status/Calls navigation to the bottom of the sidebar, independent of list scrolling */
+.sidebar{height:100dvh!important;min-height:0!important;overflow:hidden!important;display:flex!important;flex-direction:column!important}
+.sidebar-home{display:flex!important;flex:1 1 auto!important;min-height:0!important;flex-direction:column!important;overflow:hidden!important}
+.sidebar-home>.conversation-list,.sidebar-home>.home-tab-content{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important}
+.home-bottom-nav{flex:0 0 auto!important;margin-top:auto!important;position:relative!important;bottom:auto!important;width:100%!important;box-sizing:border-box!important}
