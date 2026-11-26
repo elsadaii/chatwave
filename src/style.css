@@ -256,3 +256,41 @@ html.native-app #root{
 
 /* Keep the reply/edit context above the composer without changing its row layout */
 .composer-context{position:absolute;left:8px;right:8px;bottom:calc(100% + 8px);flex:none;margin:0;z-index:6}
+
+
+/* Voice Note recording control and inline audio playback */
+.voice-record-btn{
+  flex:0 0 40px;
+  width:40px;
+  height:42px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  padding:7px!important;
+  border:1px solid #2b5649!important;
+  background:#122d26!important;
+  color:#79d9bb!important;
+  border-radius:12px!important;
+}
+.voice-record-btn:hover{background:#1b4035!important;color:#a2f2d7!important}
+.voice-record-btn.recording{
+  flex:0 0 auto;
+  min-width:67px;
+  width:auto;
+  border-color:#a94a51!important;
+  background:#422126!important;
+  color:#ffb2b5!important;
+  animation:voice-record-pulse 1.3s ease-in-out infinite;
+}
+.voice-record-btn.recording span{font-size:10px;font-weight:700;font-variant-numeric:tabular-nums}
+@keyframes voice-record-pulse{50%{box-shadow:0 0 0 4px #e65e6720}}
+.voice-note-player{display:grid;gap:5px;min-width:min(58vw,260px);max-width:100%}
+.voice-note-player audio{display:block;width:min(100%,260px);height:36px;max-width:100%}
+.voice-note-player small{font-size:10px;color:#b7d9cb}
+.composer input{flex:1 1 auto;min-width:0}
+@media(max-width:380px){
+  .voice-record-btn{flex-basis:36px;width:36px;height:40px}
+  .voice-record-btn.recording{min-width:61px}
+  .composer{gap:4px}
+}
