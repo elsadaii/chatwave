@@ -119,8 +119,8 @@ jobs:
           main = base / 'MainActivity.java'
           source = main.read_text()
           if 'AudioRoutePlugin' not in source:
-              source = source.replace('import com.getcapacitor.BridgeActivity;', 'import com.getcapacitor.BridgeActivity;\\nimport android.os.Bundle;')
-              source = source.replace('public class MainActivity extends BridgeActivity {', 'public class MainActivity extends BridgeActivity {\\n    @Override\\n    public void onCreate(Bundle savedInstanceState) {\\n        registerPlugin(AudioRoutePlugin.class);\\n        super.onCreate(savedInstanceState);\\n    }')
+              source = source.replace('import com.getcapacitor.BridgeActivity;', 'import com.getcapacitor.BridgeActivity;\nimport android.os.Bundle;')
+              source = source.replace('public class MainActivity extends BridgeActivity {', 'public class MainActivity extends BridgeActivity {\n    @Override\n    public void onCreate(Bundle savedInstanceState) {\n        registerPlugin(AudioRoutePlugin.class);\n        super.onCreate(savedInstanceState);\n    }')
               main.write_text(source)
           PY
       - name: Build debug APK
