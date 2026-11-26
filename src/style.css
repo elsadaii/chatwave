@@ -114,3 +114,18 @@
     padding-bottom:12px!important;
   }
 }
+
+
+/* Fix web chat header visibility without affecting mobile sidebar navigation */
+@media (min-width:701px){
+ .app-shell{display:flex!important;align-items:stretch!important;height:100dvh!important;overflow:hidden!important}
+ .sidebar{display:flex!important;flex-direction:column!important;min-height:0!important;overflow:hidden!important}
+ .side-header{display:flex!important;flex:0 0 auto!important;min-height:72px!important;position:relative!important;z-index:20!important}
+ .chat-panel:not(.mobile-hidden){display:flex!important;flex-direction:column!important;min-height:0!important;overflow:hidden!important}
+ .chat-header{display:flex!important;flex:0 0 auto!important;min-height:72px!important;height:auto!important;position:relative!important;z-index:20!important;visibility:visible!important}
+ .message-area{min-height:0!important;flex:1 1 auto!important;overflow-y:auto!important}
+}
+@media(max-width:700px){
+ .sidebar:not(.mobile-hidden) .side-header{display:flex!important;flex:0 0 auto!important;min-height:76px!important;visibility:visible!important}
+ .chat-panel:not(.mobile-hidden) .chat-header{display:flex!important;flex:0 0 auto!important;min-height:76px!important;visibility:visible!important}
+}
