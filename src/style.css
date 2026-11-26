@@ -142,3 +142,24 @@
 .tab-empty{flex:1;min-height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:30px;text-align:center;color:#71958a}
 .tab-empty b{color:#d9eee5;font-size:14px}
 .tab-empty p{max-width:250px;margin:0;color:#809b91;font-size:12px;line-height:1.6}
+
+/* Keep the home navigation docked at the sidebar bottom without covering chat rows */
+.sidebar-home{
+  display:flex!important;
+  flex:1 1 0!important;
+  flex-direction:column!important;
+  min-height:0!important;
+  overflow:hidden!important;
+}
+.sidebar-home>.conversation-list,
+.sidebar-home>.home-tab-content{
+  flex:1 1 auto!important;
+  min-height:0!important;
+  overflow-y:auto!important;
+}
+.sidebar-home>.home-bottom-nav{
+  flex:0 0 auto!important;
+  margin-top:auto!important;
+  position:relative!important;
+  z-index:2!important;
+}
