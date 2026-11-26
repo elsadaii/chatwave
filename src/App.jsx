@@ -46,6 +46,8 @@ export default function App() {
   const [groupManageBusy, setGroupManageBusy] = useState(false)
   const [groupTitleEdit, setGroupTitleEdit] = useState('')
   const [notificationPermission, setNotificationPermission] = useState('default')
+  const notificationPermissionRef = useRef('default')
+  notificationPermissionRef.current = notificationPermission
   const [showProfile, setShowProfile] = useState(false)
   const [showChatInfo, setShowChatInfo] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
@@ -192,7 +194,7 @@ export default function App() {
   }
 
   function notifyIncomingMessage(conversationId, message) {
-    if (!document.hidden || notificationPermission !== 'granted' || window.Capacitor?.isNativePlatform?.()) return
+    if (!document.hidden || notificationPermissionRef.current !== 'granted' || window.Capacitor?.isNativePlatform?.()) return
     try {
       const conversation = conversationsRef.current.find(item => item.id === conversationId)
       const title = conversation?.kind === 'group' ? conversation.title : displayName(conversation?.other)
@@ -211,7 +213,7 @@ export default function App() {
   }
 
   function notifyIncomingCall(row, conversationId) {
-    if (!document.hidden || notificationPermission !== 'granted' || window.Capacitor?.isNativePlatform?.()) return
+    if (!document.hidden || notificationPermissionRef.current !== 'granted' || window.Capacitor?.isNativePlatform?.()) return
     try {
       const conversation = conversationsRef.current.find(item => item.id === conversationId)
       const title = conversation?.kind === 'group' ? conversation.title : displayName(conversation?.other)
