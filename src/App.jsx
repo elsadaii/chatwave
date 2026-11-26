@@ -1392,7 +1392,7 @@ export default function App() {
   }
 
   const displayName = p => p?.display_name || p?.username || p?.email || 'Pengguna ChatWave'
-  const activeName = useMemo(() => active?.title || displayName(active?.other), [active, profile])
+  const activeName = active?.title || displayName(active?.other)
   const statusGroups = useMemo(() => {
     const grouped = new Map()
     statuses.forEach(status => {
