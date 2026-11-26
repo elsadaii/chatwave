@@ -390,6 +390,9 @@ export default function App() {
           refreshMessages()
         }
       })
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'message_reactions'
+      }, () => refreshMessages())
       .subscribe(status => {
         if (status === 'SUBSCRIBED') refreshMessages()
       })
