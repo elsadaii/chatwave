@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from './supabase'
 import { MessageCircle, Search, Send, LogOut, UserRound, Plus, ArrowLeft, Phone, Video, Paperclip, Smile, MoreVertical, Check, CheckCheck, Settings, X, Save, Image as ImageIcon, FileText, Upload, Volume2, PhoneCall, CircleDot, History } from 'lucide-react'
 import { registerPlugin } from '@capacitor/core'
+import { App as CapacitorApp } from '@capacitor/app'
 
 const AudioRoute = registerPlugin('AudioRoute')
 
@@ -10,6 +11,37 @@ export default function App() {
     if (window.Capacitor?.isNativePlatform?.()) document.documentElement.classList.add('native-app')
     return () => document.documentElement.classList.remove('native-app')
   }, [])
+
+  // Handle Android's hardware/system back button inside the app instead of
+  // letting the WebView close ChatWave while a screen is still open.
+  useEffect(() => {
+    if (!window.Capacitor?.isNativePlatform?.()) return
+    let mounted = true
+    let backListener
+    CapacitorApp.addListener('backButton', () => {
+      if (call) {
+        setNotice('Akhiri panggilan terlebih dahulu untuk kembali.')
+      } else if (showProfile) {
+        setShowProfile(false)
+      } else if (showSearch) {
+        setShowSearch(false)
+        setSearch('')
+      } else if (active) {
+        setActive(null)
+      } else if (homeTab !== 'chat') {
+        setHomeTab('chat')
+      } else {
+        CapacitorApp.exitApp()
+      }
+    }).then(listener => {
+      if (mounted) backListener = listener
+      else listener.remove()
+    }).catch(error => console.warn('Gagal memasang tombol kembali Android:', error))
+    return () => {
+      mounted = false
+      backListener?.remove()
+    }
+  }, [active, call, homeTab, showProfile, showSearch])
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
   const [authMode, setAuthMode] = useState('login')
