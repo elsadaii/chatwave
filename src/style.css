@@ -226,3 +226,8 @@ html.native-app #root{
 .attachment-menu button:active{background:#205343;transform:scale(.98)}
 .attachment-menu button svg{flex:0 0 auto;color:#65d8b4}
 @media(max-width:380px){.attachment-menu{width:190px}.attachment-menu button{gap:6px;font-size:11px}}
+
+/* Match attachment trigger icon with other composer controls */
+.attachment-picker-wrap>button{border:0;background:transparent;color:#8eaaa2;padding:9px;border-radius:10px}
+.attachment-picker-wrap>button:hover{background:#1a3832;color:#55d9b6}
+.attachment-picker-wrap>button:disabled{opacity:.4;cursor:wait}
