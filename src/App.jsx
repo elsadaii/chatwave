@@ -92,7 +92,7 @@ export default function App() {
       const { data: last } = await supabase.from('messages').select('body,created_at').eq('conversation_id', c.id).order('created_at', { ascending: false }).limit(1).maybeSingle()
       return { ...c, other, last }
     }))
-    setConversations(enriched)
+    setConversations(enriched.sort((a, b) => new Date(b.last?.created_at || b.updated_at || 0) - new Date(a.last?.created_at || a.updated_at || 0)))
   }
 
   // Keep the conversation list live even while no chat room is open.
