@@ -1038,6 +1038,8 @@ export default function App() {
     moveStatus(1)
   }
 
+  const currentViewedStatus = viewingStatusGroup?.statuses?.[viewingStatusIndex] || null
+
   useEffect(() => {
     if (!viewingStatusGroup || !currentViewedStatus || currentViewedStatus.media_type === 'video') return
     const timer = window.setTimeout(advanceStatus, 5000)
@@ -1401,7 +1403,6 @@ export default function App() {
     })
     return [...grouped.values()].sort((a,b) => a.user_id === session?.user?.id ? -1 : b.user_id === session?.user?.id ? 1 : 0)
   }, [statuses, session?.user?.id])
-  const currentViewedStatus = viewingStatusGroup?.statuses?.[viewingStatusIndex] || null
 
   if (!session) return <main className="auth-shell"><div className="auth-card"><div className="brand-mark"><MessageCircle size={27}/></div><div className="eyebrow">YOUR SPACE TO CONNECT</div><h1>Chat<span>Wave</span></h1><p className="muted">Percakapan terasa lebih dekat.</p><form onSubmit={handleAuth} className="auth-form">{authMode === 'signup' && <label>Nama lengkap<input value={fullName} onChange={e=>setFullName(e.target.value)} placeholder="Nama Anda" required /></label>}<label>Email<input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="nama@email.com" required /></label><label>Password<input type="password" minLength="6" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Minimal 6 karakter" required /></label><button className="primary-btn" disabled={authBusy}>{authBusy ? 'Memproses...' : authMode === 'login' ? 'Masuk ke ChatWave' : 'Buat akun'}</button></form><button className="text-btn" onClick={()=>{setAuthMode(authMode === 'login' ? 'signup' : 'login');setNotice('')}}>{authMode === 'login' ? 'Belum punya akun? Daftar' : 'Sudah punya akun? Masuk'}</button>{notice && <div className="notice">{notice}</div>}<div className="secure-note">Private conversations · Realtime messaging</div></div></main>
 
