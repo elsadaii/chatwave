@@ -453,3 +453,6 @@ html.native-app #root{
   .group-composer-card{padding:16px;max-height:94dvh}
   .group-people-list{max-height:40vh}
 }
+
+
+.group-message-sender{display:block;margin:0 24px 5px 0;color:#82e1bf;font-size:10px;font-weight:800;letter-spacing:.15px}
