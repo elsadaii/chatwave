@@ -249,6 +249,7 @@ export default function App() {
     loadStatusFeed()
     const channel = supabase.channel('status-feed-' + session.user.id)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'statuses' }, () => loadStatusFeed())
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'status_views' }, () => loadStatusFeed())
       .subscribe()
     return () => supabase.removeChannel(channel)
   }, [session?.user?.id, homeTab])
