@@ -31,6 +31,7 @@ export default function App() {
   const attachmentInputRef = useRef(null)
   const avatarInputRef = useRef(null)
   const messageAreaRef = useRef(null)
+  const initialChatScrollRef = useRef(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
@@ -69,6 +70,10 @@ export default function App() {
     }))
     setConversations(enriched)
   }
+
+  useEffect(() => {
+    initialChatScrollRef.current = active?.id || null
+  }, [active?.id])
 
   useEffect(() => {
     if (!active?.id || !session?.user?.id) { setMessages([]); return }
@@ -283,6 +288,16 @@ export default function App() {
       .subscribe(status => { if (status === 'SUBSCRIBED') chatChannelRef.current = channel })
     return () => { chatChannelRef.current = null; supabase.removeChannel(channel); setPeerTyping(false) }
   }, [active?.id, active?.other?.id, session?.user?.id])
+
+  // When a room opens, position the view at the newest message once.
+  // Subsequent message updates do not force-scroll the user.
+  useEffect(() => {
+    if (!active?.id || !messages.length || initialChatScrollRef.current !== active.id) return
+    const area = messageAreaRef.current
+    if (!area) return
+    area.scrollTop = area.scrollHeight
+    initialChatScrollRef.current = null
+  }, [active?.id, messages.length])
 
   async function attachSignedMedia(rows) {
     return Promise.all(rows.map(async m => {
