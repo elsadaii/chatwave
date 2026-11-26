@@ -407,3 +407,49 @@ html.native-app #root{
 
 .status-progress span.current{background:#ffffff;transform:scaleX(0);transform-origin:left;animation:status-progress-fill 5s linear forwards}
 @keyframes status-progress-fill{to{transform:scaleX(1)}}
+
+
+/* Group chat creation and group member panels */
+.people-list-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 18px 8px;border-bottom:1px solid #1b3931}
+.people-list-heading .section-label{padding:8px 2px}
+.create-group-open{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid #2f6d59;border-radius:9px;background:#153b30;color:#8de5c8;font-size:10px;font-weight:700}
+.group-composer-overlay{position:fixed;inset:0;z-index:55;display:grid;place-items:center;padding:14px;background:#020b09d9;backdrop-filter:blur(8px)}
+.group-composer-card{width:min(100%,470px);max-height:min(90dvh,720px);display:flex;flex-direction:column;padding:20px;border:1px solid #2b5549;border-radius:20px;background:linear-gradient(155deg,#102a25,#0b1d1a);box-shadow:0 25px 90px #000a}
+.group-composer-card>header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px}
+.group-composer-card>header span{font-size:9px;letter-spacing:2px;color:#55c9a7;font-weight:800}
+.group-composer-card>header h2{margin:5px 0 0;color:#edf8f3;font:700 19px Manrope}
+.group-composer-card>header button{width:34px;height:34px;display:grid;place-items:center;border:0;border-radius:9px;background:#193a32;color:#a8c9bd}
+.group-composer-card>label{display:grid;gap:7px;color:#b9d0c7;font-size:11px;font-weight:700}
+.group-composer-card>label input,.group-search input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:#eef8f3;font-size:12px}
+.group-composer-card>label input{padding:12px;border:1px solid #2b4e44;border-radius:11px;background:#091b17}
+.group-member-count{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:17px 0 8px}
+.group-member-count b{font-size:12px;color:#e5f3ec}
+.group-member-count span{font-size:9px;color:#7fa195;text-align:right}
+.group-search{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid #284b40;border-radius:10px;background:#091b17;color:#86ab9b}
+.group-people-list{min-height:100px;max-height:42vh;overflow:auto;margin-top:8px;border:1px solid #1f4036;border-radius:11px}
+.group-person-row{width:100%;display:flex;align-items:center;gap:10px;padding:9px 10px;border:0;border-bottom:1px solid #1a372f;background:transparent;text-align:left;color:#eaf5f2}
+.group-person-row:last-child{border-bottom:0}
+.group-person-row.selected{background:#163a30}
+.group-person-row .avatar{width:36px;height:36px;border-radius:12px;overflow:hidden}
+.group-person-row>div:nth-child(2){display:grid;gap:3px;flex:1;min-width:0}
+.group-person-row b{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.group-person-row small{font-size:9px;color:#7fa697}
+.group-select-check{width:24px;height:24px;display:grid;place-items:center;border:1px solid #396354;border-radius:50%;color:#9ac7b4;font-size:14px}
+.group-select-check.checked{border-color:#32c59b;background:#25b88f;color:#06231b;font-weight:900}
+.group-empty-hint{padding:22px 12px;color:#78998c;font-size:11px;text-align:center}
+.group-composer-card>footer{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.group-composer-card>footer button{padding:10px 14px;border:1px solid #31574b;border-radius:10px;background:#122b24;color:#a8c9bd;font-size:11px;font-weight:700}
+.group-composer-card>footer button:last-child{border-color:#2b8a6c;background:#25b88f;color:#06231b}
+.group-composer-card>footer button:disabled{opacity:.45;cursor:not-allowed}
+.group-member-list{max-height:320px;overflow:auto;text-align:left}
+.group-member-row{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid #24443a}
+.group-member-row:last-child{border-bottom:0}
+.group-member-row .avatar{width:36px;height:36px;border-radius:12px;overflow:hidden}
+.group-member-row>div:last-child{display:grid;gap:3px}
+.group-member-row b{font-size:11px;color:#e5f3ec}
+.group-member-row small{font-size:9px;color:#84a99a}
+@media(max-width:480px){
+  .group-composer-overlay{padding:8px}
+  .group-composer-card{padding:16px;max-height:94dvh}
+  .group-people-list{max-height:40vh}
+}
