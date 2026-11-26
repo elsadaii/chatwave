@@ -488,7 +488,7 @@ export default function App() {
       else if(v.candidate){if(pc.remoteDescription)await pc.addIceCandidate(v.candidate);else pendingIceRef.current.push(v.candidate)}
     }catch(e){setNotice('Signaling: '+(e.message||'gagal'))}
   }
-  async function processSignalRow(row){if(!row||row.sender_id===session.user.id||seenSignalIdsRef.current.has(row.id))return;seenSignalIdsRef.current.add(row.id);await processCallSignal(row.payload,row.sender_id)}
+  async function processSignalRow(row){if(!rtcRef.current||!row||row.sender_id===session.user.id||seenSignalIdsRef.current.has(row.id))return;seenSignalIdsRef.current.add(row.id);await processCallSignal(row.payload,row.sender_id)}
   useEffect(()=>{if(!call||!session?.user?.id)return;let alive=true;seenSignalIdsRef.current=new Set();const sync=async()=>{const {data,error}=await supabase.from('call_signals').select('id,sender_id,payload').eq('call_id',call.id).order('created_at');if(!alive||error)return;for(const row of data||[])await processSignalRow(row)};const ch=supabase.channel('signals-'+call.id).on('postgres_changes',{event:'INSERT',schema:'public',table:'call_signals',filter:'call_id=eq.'+call.id},p=>processSignalRow(p.new)).subscribe(status=>{if(status==='SUBSCRIBED')sync()});const poll=window.setInterval(sync,1500);return()=>{alive=false;window.clearInterval(poll);supabase.removeChannel(ch)}},[call?.id,session?.user?.id,callStatus])
   useEffect(()=>{if(callStatus!=='Terhubung')return;const timer=setInterval(()=>setCallSeconds(s=>s+1),1000);return()=>clearInterval(timer)},[callStatus])
   async function flushIce(pc){const pending=pendingIceRef.current.splice(0);for(const candidate of pending){try{await pc.addIceCandidate(candidate)}catch(e){console.warn('ICE candidate',e)}}}
