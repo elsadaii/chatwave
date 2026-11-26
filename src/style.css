@@ -217,3 +217,12 @@ html.native-app #root{
 .call-log-info b{font-size:13px;color:#e2f1eb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .call-log-info small,.call-log-result small{font-size:10px;color:#86a69a}
 .call-log-result{display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-size:11px;color:#b9d8ca;white-space:nowrap}
+
+
+/* ChatWave attachment quick actions */
+.attachment-picker-wrap{position:relative;display:flex;align-items:center;flex:0 0 auto}
+.attachment-menu{position:absolute;left:0;bottom:calc(100% + 12px);z-index:60;width:208px;padding:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#102a24;border:1px solid #285247;border-radius:16px;box-shadow:0 12px 32px rgba(0,0,0,.38)}
+.attachment-menu button{display:flex;align-items:center;gap:8px;min-height:48px;padding:9px 8px;border:1px solid rgba(126,180,157,.12);border-radius:11px;background:#16372f;color:#d9eee5;font-size:12px;font-weight:600;text-align:left}
+.attachment-menu button:active{background:#205343;transform:scale(.98)}
+.attachment-menu button svg{flex:0 0 auto;color:#65d8b4}
+@media(max-width:380px){.attachment-menu{width:190px}.attachment-menu button{gap:6px;font-size:11px}}
