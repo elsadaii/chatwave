@@ -474,3 +474,8 @@ html.native-app #root{
 .group-member-row b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .chat-info-card:has(.group-member-list){width:min(100%,420px)}
 @media(max-width:390px){.group-info-actions{flex-direction:column}.group-member-actions button{font-size:8px}}
+
+
+.status-audience-control{display:grid;gap:6px;margin:12px 0;color:#9bb8ab;font-size:10px;font-weight:700}
+.status-audience-control select{width:100%;padding:10px 11px;border:1px solid #2b4e44;border-radius:10px;outline:0;background:#091b17;color:#e7f5ed;font-size:11px}
+.status-audience-control select:focus{border-color:#49d3ad}
