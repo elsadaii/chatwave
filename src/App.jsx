@@ -169,8 +169,6 @@ export default function App() {
     }
   }, [active?.id, session?.user?.id, messages.length])
 
-  useEffect(() => {\n    const box = messageAreaRef.current\n    if (box) box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' })\n  }, [messages, active?.id])
-
   useEffect(() => {
     if (!session?.user?.id) return
     const updateLastSeen = () => {
