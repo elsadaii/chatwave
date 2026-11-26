@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from './supabase'
-import { MessageCircle, Search, Send, LogOut, UserRound, Plus, ArrowLeft, Phone, Video, Paperclip, Smile, MoreVertical, Check, CheckCheck, Settings, X, Save, Image as ImageIcon, FileText, Upload, Volume2, PhoneCall, CircleDot, History, Camera, FolderOpen, MapPin, Images, Reply, Pencil, Trash2, Mic, Square, Users, UserPlus } from 'lucide-react'
+import { MessageCircle, Search, Send, LogOut, UserRound, Plus, ArrowLeft, Phone, Video, Paperclip, Smile, MoreVertical, Check, CheckCheck, Settings, X, Save, Image as ImageIcon, FileText, Upload, Volume2, PhoneCall, CircleDot, History, Camera, FolderOpen, MapPin, Images, Reply, Pencil, Trash2, Mic, Square, Users, UserPlus, Bell } from 'lucide-react'
 import { registerPlugin } from '@capacitor/core'
 import { App as CapacitorApp } from '@capacitor/app'
 
@@ -24,6 +24,8 @@ export default function App() {
   const [notice, setNotice] = useState('')
   useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(''), 3500); return () => window.clearTimeout(timer) }, [notice])
   const [conversations, setConversations] = useState([])
+  const conversationsRef = useRef([])
+  conversationsRef.current = conversations
   const [homeTab, setHomeTab] = useState('chat')
   const [active, setActive] = useState(null)
   const [messages, setMessages] = useState([])
@@ -43,6 +45,7 @@ export default function App() {
   const [showAddGroupMembers, setShowAddGroupMembers] = useState(false)
   const [groupManageBusy, setGroupManageBusy] = useState(false)
   const [groupTitleEdit, setGroupTitleEdit] = useState('')
+  const [notificationPermission, setNotificationPermission] = useState('default')
   const [showProfile, setShowProfile] = useState(false)
   const [showChatInfo, setShowChatInfo] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
@@ -166,6 +169,65 @@ export default function App() {
       backListener?.remove()
     }
   }, [active, call, homeTab, showGroupComposer, showProfile, showSearch])
+
+  useEffect(() => {
+    setNotificationPermission(typeof Notification !== 'undefined' ? Notification.permission : 'unsupported')
+  }, [])
+
+  async function enableBrowserNotifications() {
+    if (window.Capacitor?.isNativePlatform?.()) {
+      setNotice('Push notification untuk APK memerlukan konfigurasi Firebase Cloud Messaging. Notifikasi browser diaktifkan lewat versi web.')
+      return
+    }
+    if (!('Notification' in window)) {
+      setNotificationPermission('unsupported')
+      setNotice('Browser ini tidak mendukung notifikasi.')
+      return
+    }
+    try {
+      const permission = await Notification.requestPermission()
+      setNotificationPermission(permission)
+      setNotice(permission === 'granted' ? 'Notifikasi browser berhasil diaktifkan.' : 'Izin notifikasi belum diberikan.')
+    } catch (error) { setNotice('Tidak dapat meminta izin notifikasi: ' + (error.message || 'kesalahan')) }
+  }
+
+  function notifyIncomingMessage(conversationId, message) {
+    if (!document.hidden || notificationPermission !== 'granted' || window.Capacitor?.isNativePlatform?.()) return
+    try {
+      const conversation = conversationsRef.current.find(item => item.id === conversationId)
+      const title = conversation?.kind === 'group' ? conversation.title : displayName(conversation?.other)
+      const body = message?.body || (message?.message_type === 'image' ? 'Mengirim foto' : message?.message_type === 'video' ? 'Mengirim video' : message?.media_mime_type?.startsWith('audio/') ? 'Mengirim Voice Note' : 'Mengirim lampiran')
+      const notification = new Notification(title || 'Pesan baru di ChatWave', {
+        body, tag: 'chatwave-' + conversationId, renotify: true
+      })
+      notification.onclick = () => {
+        window.focus()
+        setHomeTab('chat')
+        const target = conversationsRef.current.find(item => item.id === conversationId)
+        if (target) setActive(target)
+        notification.close()
+      }
+    } catch (error) { console.warn('Notifikasi browser gagal ditampilkan:', error) }
+  }
+
+  function notifyIncomingCall(row, conversationId) {
+    if (!document.hidden || notificationPermission !== 'granted' || window.Capacitor?.isNativePlatform?.()) return
+    try {
+      const conversation = conversationsRef.current.find(item => item.id === conversationId)
+      const title = conversation?.kind === 'group' ? conversation.title : displayName(conversation?.other)
+      const notification = new Notification(title || 'Panggilan masuk ChatWave', {
+        body: row.call_type === 'video' ? 'Panggilan video masuk' : 'Panggilan suara masuk',
+        tag: 'chatwave-call-' + row.id, renotify: true
+      })
+      notification.onclick = () => {
+        window.focus()
+        setHomeTab('chat')
+        const target = conversationsRef.current.find(item => item.id === conversationId)
+        if (target) setActive(target)
+        notification.close()
+      }
+    } catch (error) { console.warn('Notifikasi panggilan gagal ditampilkan:', error) }
+  }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
@@ -321,6 +383,7 @@ export default function App() {
           filter: 'conversation_id=eq.' + conversationId
         }, payload => {
           const incoming = payload.new
+          if (incoming.sender_id !== session.user.id) notifyIncomingMessage(conversationId, incoming)
           setConversations(old => {
             const updated = old.map(c => c.id === conversationId
               ? { ...c, last: { body: incoming.body, created_at: incoming.created_at }, updated_at: incoming.created_at }
@@ -1182,7 +1245,7 @@ export default function App() {
     const channel = supabase.channel('calls-inbox-'+session.user.id).on('postgres_changes',{event:'INSERT',schema:'public',table:'calls'},async payload=>{
       const row=payload.new;if(row.started_by===session.user.id||row.status!=='ringing')return
       const {data:members}=await supabase.from('conversation_members').select('user_id').eq('conversation_id',row.conversation_id)
-      if((members||[]).some(m=>m.user_id===session.user.id)){setCall(row);setCallStatus('Panggilan masuk')}
+      if((members||[]).some(m=>m.user_id===session.user.id)){notifyIncomingCall(row,row.conversation_id);setCall(row);setCallStatus('Panggilan masuk')}
     }).subscribe()
     return ()=>supabase.removeChannel(channel)
   },[session?.user?.id])
@@ -1309,7 +1372,7 @@ export default function App() {
 
   if (!session) return <main className="auth-shell"><div className="auth-card"><div className="brand-mark"><MessageCircle size={27}/></div><div className="eyebrow">YOUR SPACE TO CONNECT</div><h1>Chat<span>Wave</span></h1><p className="muted">Percakapan terasa lebih dekat.</p><form onSubmit={handleAuth} className="auth-form">{authMode === 'signup' && <label>Nama lengkap<input value={fullName} onChange={e=>setFullName(e.target.value)} placeholder="Nama Anda" required /></label>}<label>Email<input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="nama@email.com" required /></label><label>Password<input type="password" minLength="6" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Minimal 6 karakter" required /></label><button className="primary-btn" disabled={authBusy}>{authBusy ? 'Memproses...' : authMode === 'login' ? 'Masuk ke ChatWave' : 'Buat akun'}</button></form><button className="text-btn" onClick={()=>{setAuthMode(authMode === 'login' ? 'signup' : 'login');setNotice('')}}>{authMode === 'login' ? 'Belum punya akun? Daftar' : 'Sudah punya akun? Masuk'}</button>{notice && <div className="notice">{notice}</div>}<div className="secure-note">Private conversations · Realtime messaging</div></div></main>
 
-  return <main className="app-shell"><aside className={'sidebar ' + (active ? 'mobile-hidden' : '')}><header className="side-header"><div className="brand-small"><div className="brand-mark small"><MessageCircle size={20}/></div><b>Chat<span>Wave</span></b></div><div className="header-actions"><button title="Cari pengguna" onClick={()=>setShowSearch(!showSearch)}><Plus/></button><button title="Buat grup" onClick={()=>{setGroupMemberIds([]);setGroupTitle('');setShowGroupComposer(true)}}><Users size={18}/></button><button title="Keluar" onClick={()=>supabase.auth.signOut()}><LogOut/></button></div></header><button className="profile-strip profile-open" onClick={openProfileSettings} title="Ubah profil"><div className="avatar self">{profile?.avatar_url ? <img src={profile.avatar_url} alt="Foto profil"/> : <UserRound/>}</div><div className="profile-copy"><b>{displayName(profile)}</b><small>@{profile?.username || 'pengguna'} · Ubah profil</small></div><Settings className="profile-settings-icon" size={17}/></button><div className="search-box"><Search size={17}/><input value={search} onChange={e=>{setShowSearch(true);findPeople(e.target.value)}} onFocus={()=>setShowSearch(true)} placeholder="Cari teman untuk chat..." /></div>{showSearch && search.trim() ? <div className="people-list"><div className="people-list-heading"><div className="section-label">HASIL PENCARIAN</div><button type="button" className="create-group-open" onClick={()=>setShowGroupComposer(true)}><Users size={15}/>Buat grup</button></div>{people.map(p=><button className="person-row" key={p.id} onClick={()=>startChat(p)}><div className="avatar">{p.avatar_url ? <img src={p.avatar_url} alt=""/> : (displayName(p)[0] || 'U').toUpperCase()}</div><div><b>{displayName(p)}</b><small>@{p.username || 'pengguna'}</small></div></button>)}{!people.length && <p className="empty-hint">Tidak ada pengguna ditemukan.</p>}</div> : <div className="sidebar-home">
+  return <main className="app-shell"><aside className={'sidebar ' + (active ? 'mobile-hidden' : '')}><header className="side-header"><div className="brand-small"><div className="brand-mark small"><MessageCircle size={20}/></div><b>Chat<span>Wave</span></b></div><div className="header-actions"><button title={notificationPermission==='granted'?'Notifikasi aktif':'Aktifkan notifikasi browser'} onClick={enableBrowserNotifications}><Bell size={17}/></button><button title="Cari pengguna" onClick={()=>setShowSearch(!showSearch)}><Plus/></button><button title="Buat grup" onClick={()=>{setGroupMemberIds([]);setGroupTitle('');setShowGroupComposer(true)}}><Users size={18}/></button><button title="Keluar" onClick={()=>supabase.auth.signOut()}><LogOut/></button></div></header><button className="profile-strip profile-open" onClick={openProfileSettings} title="Ubah profil"><div className="avatar self">{profile?.avatar_url ? <img src={profile.avatar_url} alt="Foto profil"/> : <UserRound/>}</div><div className="profile-copy"><b>{displayName(profile)}</b><small>@{profile?.username || 'pengguna'} · Ubah profil</small></div><Settings className="profile-settings-icon" size={17}/></button><div className="search-box"><Search size={17}/><input value={search} onChange={e=>{setShowSearch(true);findPeople(e.target.value)}} onFocus={()=>setShowSearch(true)} placeholder="Cari teman untuk chat..." /></div>{showSearch && search.trim() ? <div className="people-list"><div className="people-list-heading"><div className="section-label">HASIL PENCARIAN</div><button type="button" className="create-group-open" onClick={()=>setShowGroupComposer(true)}><Users size={15}/>Buat grup</button></div>{people.map(p=><button className="person-row" key={p.id} onClick={()=>startChat(p)}><div className="avatar">{p.avatar_url ? <img src={p.avatar_url} alt=""/> : (displayName(p)[0] || 'U').toUpperCase()}</div><div><b>{displayName(p)}</b><small>@{p.username || 'pengguna'}</small></div></button>)}{!people.length && <p className="empty-hint">Tidak ada pengguna ditemukan.</p>}</div> : <div className="sidebar-home">
         {homeTab === 'chat' && <><div className="list-heading"><span>Pesan</span><span className="muted-count">{conversations.length}</span></div><div className="conversation-list">{conversations.map(c=><button key={c.id} className={'conversation-row ' + (active?.id === c.id ? 'selected' : '')} onClick={()=>setActive(c)}><div className="avatar">{c.kind==='group'?<Users size={20}/>:c.other?.avatar_url ? <img src={c.other.avatar_url} alt=""/> : (displayName(c.other)[0] || 'U').toUpperCase()}</div><div className="conversation-info"><div className="conversation-top"><b>{c.kind==='group'?c.title:displayName(c.other)}</b><small>{c.last?.created_at ? new Date(c.last.created_at).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}) : ''}</small></div><p>{c.last ? (c.kind==='group' && c.last.sender_name ? c.last.sender_name + ': ' : '') + (c.last.body || (c.last.message_type==='image'?'Foto':c.last.message_type==='video'?'Video':c.last.message_type==='audio'?'Voice Note':'Lampiran')) : 'Mulai percakapan baru'}</p></div></button>)}{!conversations.length && <div className="empty-state"><MessageCircle size={28}/><b>Belum ada percakapan</b><p>Tekan tombol + untuk mencari teman.</p></div>}</div></>}
         {homeTab === 'status' && <div className="home-tab-content"><div className="list-heading"><span>Status</span><div className="status-header-actions"><button type="button" onClick={loadStatusFeed} disabled={statusLoading} title="Muat ulang Status"><History size={15}/></button><button type="button" onClick={()=>setShowStatusComposer(true)}><Plus size={15}/>Tambah</button></div></div><div className="status-list">{statusGroups.map(group=>{const latest=group.statuses[group.statuses.length-1];const isMine=group.user_id===session.user.id;const hasUnseen=group.statuses.some(item=>!item.viewed_by_me&&!isMine);return <button type="button" className="status-row" key={group.user_id} onClick={()=>openStatusGroup(group)}><div className={'status-avatar-ring '+(hasUnseen?'unseen':'')}>{group.user?.avatar_url?<img src={group.user.avatar_url} alt=""/>:(displayName(group.user)[0]||'U').toUpperCase()}</div><div className="status-row-info"><b>{isMine?'Status saya':displayName(group.user)}</b><small>{group.statuses.length} status · {new Date(latest.created_at).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}</small><span>{latest.body || (latest.media_type==='video'?'Video':latest.media_type==='image'?'Foto':'Status')}</span></div>{isMine&&<span className="status-add-mini" onClick={e=>{e.stopPropagation();setShowStatusComposer(true)}}><Plus size={17}/></span>}</button>})}{statusLoading&&!statusGroups.length?<div className="tab-empty">Memuat Status...</div>:!statusGroups.length?<div className="tab-empty"><CircleDot size={34}/><b>Belum ada Status</b><p>Bagikan teks, foto, atau video. Status akan tersedia selama 24 jam.</p><button type="button" className="status-first-add" onClick={()=>setShowStatusComposer(true)}>Buat Status pertama</button></div>:null}</div><input ref={statusMediaInputRef} className="hidden-file-input" type="file" accept="image/*,video/*" onChange={e=>setStatusFile(e.target.files?.[0]||null)}/></div>}
         {homeTab === 'calls' && <div className="home-tab-content"><div className="list-heading"><span>Log Panggilan</span><button type="button" className="text-btn" onClick={loadCallLogs}>Muat ulang</button></div><div className="call-log-list">{callLogsLoading && !callLogs.length ? <div className="tab-empty">Memuat riwayat panggilan...</div> : callLogs.length ? callLogs.map(row => { const outgoing = row.started_by === session.user.id; const durationSeconds = row.started_at && row.ended_at ? Math.max(0, Math.floor((new Date(row.ended_at).getTime() - new Date(row.started_at).getTime()) / 1000)) : null; const durationLabel = durationSeconds === null ? '—' : String(Math.floor(durationSeconds / 60)).padStart(2, '0') + ':' + String(durationSeconds % 60).padStart(2, '0'); const statusLabel = row.status === 'missed' || (row.status === 'ringing' && !outgoing) ? 'Tidak terjawab' : row.status === 'declined' ? 'Ditolak' : row.status === 'ended' ? 'Berakhir' : row.status === 'accepted' ? 'Terhubung' : 'Memanggil'; return <div className="call-log-row" key={row.id}><div className="avatar">{row.peer?.avatar_url ? <img src={row.peer.avatar_url} alt=""/> : (displayName(row.peer)[0] || 'U').toUpperCase()}</div><div className="call-log-info"><b>{displayName(row.peer)}</b><small>{outgoing ? 'Panggilan keluar' : 'Panggilan masuk'} · {row.call_type === 'video' ? 'Video' : 'Suara'}</small><small>{new Date(row.started_at).toLocaleString('id-ID',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</small><small>Durasi: {durationLabel}</small></div><div className="call-log-result"><b>{statusLabel}</b><small>{row.ended_at ? new Date(row.ended_at).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}) : ''}</small></div></div> }) : <div className="tab-empty"><History size={34}/><b>Belum ada panggilan</b><p>Riwayat panggilan akan muncul otomatis di sini.</p></div>}</div></div>}
