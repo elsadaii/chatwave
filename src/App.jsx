@@ -95,6 +95,43 @@ export default function App() {
     setConversations(enriched)
   }
 
+  // Keep the conversation list live even while no chat room is open.
+  useEffect(() => {
+    if (!session?.user?.id) return
+    const channels = []
+    const conversationIds = conversations.map(c => c.id)
+    conversationIds.forEach(conversationId => {
+      const channel = supabase.channel('home-list-' + session.user.id + '-' + conversationId)
+        .on('postgres_changes', {
+          event: 'INSERT', schema: 'public', table: 'messages',
+          filter: 'conversation_id=eq.' + conversationId
+        }, payload => {
+          const incoming = payload.new
+          setConversations(old => {
+            const updated = old.map(c => c.id === conversationId
+              ? { ...c, last: { body: incoming.body, created_at: incoming.created_at }, updated_at: incoming.created_at }
+              : c)
+            return updated.sort((a, b) => new Date(b.last?.created_at || b.updated_at || 0) - new Date(a.last?.created_at || a.updated_at || 0))
+          })
+          // Reconcile the preview and ordering with the server after the immediate update.
+          loadConversations()
+        })
+        .subscribe()
+      channels.push(channel)
+    })
+
+    // Also discover conversations newly created by another participant.
+    const membershipChannel = supabase.channel('home-memberships-' + session.user.id)
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'conversation_members',
+        filter: 'user_id=eq.' + session.user.id
+      }, () => loadConversations())
+      .subscribe()
+    channels.push(membershipChannel)
+
+    return () => channels.forEach(channel => supabase.removeChannel(channel))
+  }, [session?.user?.id, conversations.map(c => c.id).join('|')])
+
   useEffect(() => {
     initialChatScrollRef.current = active?.id || null
     nearBottomRef.current = true
