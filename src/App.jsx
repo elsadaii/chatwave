@@ -49,6 +49,15 @@ export default function App() {
   const [callSeconds, setCallSeconds] = useState(0)
   const [callLogs, setCallLogs] = useState([])
   const [callLogsLoading, setCallLogsLoading] = useState(false)
+  const [statuses, setStatuses] = useState([])
+  const [statusLoading, setStatusLoading] = useState(false)
+  const [statusBusy, setStatusBusy] = useState(false)
+  const [showStatusComposer, setShowStatusComposer] = useState(false)
+  const [statusDraft, setStatusDraft] = useState('')
+  const [statusBackground, setStatusBackground] = useState('#17483b')
+  const [statusFile, setStatusFile] = useState(null)
+  const [viewingStatusGroup, setViewingStatusGroup] = useState(null)
+  const [viewingStatusIndex, setViewingStatusIndex] = useState(0)
   const [remoteVideoStream, setRemoteVideoStream] = useState(null)
   const localVideoRef = useRef(null)
   const [audioRoute, setAudioRoute] = useState('earpiece')
@@ -63,6 +72,7 @@ export default function App() {
   const attachmentInputRef = useRef(null)
   const cameraInputRef = useRef(null)
   const galleryInputRef = useRef(null)
+  const statusMediaInputRef = useRef(null)
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false)
   const [recordingVoiceNote, setRecordingVoiceNote] = useState(false)
   const [recordingSeconds, setRecordingSeconds] = useState(0)
@@ -194,6 +204,49 @@ export default function App() {
     loadCallLogs()
     const channel = supabase.channel('call-history-' + session.user.id)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'calls' }, () => loadCallLogs())
+      .subscribe()
+    return () => supabase.removeChannel(channel)
+  }, [session?.user?.id, homeTab])
+
+  async function loadStatusFeed() {
+    if (!session?.user?.id) return
+    setStatusLoading(true)
+    try {
+      const { data: rows, error } = await supabase.from('statuses').select('*')
+        .gt('expires_at', new Date().toISOString()).order('created_at', { ascending: true }).limit(150)
+      if (error) throw error
+      if (!rows?.length) { setStatuses([]); return }
+      const userIds = [...new Set(rows.map(row => row.user_id))]
+      const statusIds = rows.map(row => row.id)
+      const [{ data: profiles, error: profileError }, { data: views, error: viewError }] = await Promise.all([
+        supabase.from('profiles').select('id,display_name,username,avatar_url').in('id', userIds),
+        supabase.from('status_views').select('status_id,viewer_id,viewed_at').in('status_id', statusIds)
+      ])
+      if (profileError) throw profileError
+      if (viewError) throw viewError
+      const profileById = new Map((profiles || []).map(item => [item.id, item]))
+      const viewRows = views || []
+      const enriched = await Promise.all(rows.map(async row => {
+        let mediaUrl = null
+        if (row.media_path) {
+          const { data, error: signedError } = await supabase.storage.from('status-media').createSignedUrl(row.media_path, 3600)
+          if (!signedError) mediaUrl = data?.signedUrl || null
+        }
+        const statusViews = viewRows.filter(view => view.status_id === row.id)
+        return { ...row, user: profileById.get(row.user_id) || null, media_url: mediaUrl,
+          view_count: statusViews.length, viewed_by_me: statusViews.some(view => view.viewer_id === session.user.id) }
+      }))
+      setStatuses(enriched)
+    } catch (error) {
+      setNotice('Gagal memuat Status: ' + (error.message || 'kesalahan'))
+    } finally { setStatusLoading(false) }
+  }
+
+  useEffect(() => {
+    if (!session?.user?.id || homeTab !== 'status') return
+    loadStatusFeed()
+    const channel = supabase.channel('status-feed-' + session.user.id)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'statuses' }, () => loadStatusFeed())
       .subscribe()
     return () => supabase.removeChannel(channel)
   }, [session?.user?.id, homeTab])
@@ -764,6 +817,81 @@ export default function App() {
     }
   }, [active?.id, recordingVoiceNote])
 
+  async function publishStatus() {
+    if (!session?.user?.id || statusBusy) return
+    const body = statusDraft.trim()
+    if (!statusFile && !body) { setNotice('Tulis status atau pilih foto/video terlebih dahulu.'); return }
+    if (statusFile && statusFile.size > 50 * 1024 * 1024) { setNotice('Ukuran foto/video Status maksimal 50 MB.'); return }
+    setStatusBusy(true)
+    setNotice('Menerbitkan Status...')
+    let mediaPath = null
+    try {
+      let mediaType = 'text'
+      if (statusFile) {
+        mediaType = statusFile.type.startsWith('video/') ? 'video' : 'image'
+        const safeName = statusFile.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80)
+        mediaPath = session.user.id + '/' + crypto.randomUUID() + '-' + safeName
+        const { error: uploadError } = await supabase.storage.from('status-media').upload(mediaPath, statusFile, {
+          contentType: statusFile.type, cacheControl: '3600'
+        })
+        if (uploadError) throw uploadError
+      }
+      const { error } = await supabase.from('statuses').insert({
+        user_id: session.user.id, media_type: mediaType, body: body || null, media_path: mediaPath,
+        background_color: mediaType === 'text' ? statusBackground : null
+      })
+      if (error) throw error
+      setShowStatusComposer(false); setStatusDraft(''); setStatusFile(null)
+      await loadStatusFeed()
+      setNotice('Status berhasil diterbitkan dan akan hilang setelah 24 jam.')
+    } catch (error) {
+      if (mediaPath) await supabase.storage.from('status-media').remove([mediaPath]).catch(() => {})
+      setNotice('Gagal menerbitkan Status: ' + (error.message || 'kesalahan'))
+    } finally {
+      setStatusBusy(false)
+      if (statusMediaInputRef.current) statusMediaInputRef.current.value = ''
+    }
+  }
+
+  async function markStatusViewed(status) {
+    if (!status || status.user_id === session?.user?.id) return
+    const { error } = await supabase.from('status_views').upsert({
+      status_id: status.id, viewer_id: session.user.id
+    }, { onConflict: 'status_id,viewer_id', ignoreDuplicates: true })
+    if (error) console.warn('Gagal mencatat Status dilihat:', error.message)
+    setStatuses(current => current.map(item => item.id === status.id ? { ...item, viewed_by_me: true } : item))
+  }
+
+  function openStatusGroup(group) {
+    if (!group?.statuses?.length) return
+    setViewingStatusGroup(group); setViewingStatusIndex(0)
+    markStatusViewed(group.statuses[0])
+  }
+
+  function moveStatus(direction) {
+    if (!viewingStatusGroup) return
+    const nextIndex = Math.max(0, Math.min(viewingStatusGroup.statuses.length - 1, viewingStatusIndex + direction))
+    setViewingStatusIndex(nextIndex)
+    markStatusViewed(viewingStatusGroup.statuses[nextIndex])
+  }
+
+  async function deleteOwnStatus(status) {
+    if (!status || status.user_id !== session?.user?.id) return
+    if (!window.confirm('Hapus Status ini?')) return
+    const { error } = await supabase.from('statuses').delete().eq('id', status.id).eq('user_id', session.user.id)
+    if (error) { setNotice('Gagal menghapus Status: ' + error.message); return }
+    if (status.media_path) await supabase.storage.from('status-media').remove([status.media_path]).catch(() => {})
+    const remaining = viewingStatusGroup.statuses.filter(item => item.id !== status.id)
+    setStatuses(current => current.filter(item => item.id !== status.id))
+    if (!remaining.length) setViewingStatusGroup(null)
+    else {
+      const index = Math.min(viewingStatusIndex, remaining.length - 1)
+      setViewingStatusGroup({ ...viewingStatusGroup, statuses: remaining })
+      setViewingStatusIndex(index)
+    }
+    setNotice('Status berhasil dihapus.')
+  }
+
   async function shareCurrentLocation() {
     setShowAttachmentMenu(false)
     if (!navigator.geolocation) { setNotice('Perangkat tidak mendukung berbagi lokasi.'); return }
@@ -936,12 +1064,21 @@ export default function App() {
 
   const displayName = p => p?.display_name || p?.username || p?.email || 'Pengguna ChatWave'
   const activeName = useMemo(() => active?.title || displayName(active?.other), [active, profile])
+  const statusGroups = useMemo(() => {
+    const grouped = new Map()
+    statuses.forEach(status => {
+      if (!grouped.has(status.user_id)) grouped.set(status.user_id, { user_id: status.user_id, user: status.user, statuses: [] })
+      grouped.get(status.user_id).statuses.push(status)
+    })
+    return [...grouped.values()].sort((a,b) => a.user_id === session?.user?.id ? -1 : b.user_id === session?.user?.id ? 1 : 0)
+  }, [statuses, session?.user?.id])
+  const currentViewedStatus = viewingStatusGroup?.statuses?.[viewingStatusIndex] || null
 
   if (!session) return <main className="auth-shell"><div className="auth-card"><div className="brand-mark"><MessageCircle size={27}/></div><div className="eyebrow">YOUR SPACE TO CONNECT</div><h1>Chat<span>Wave</span></h1><p className="muted">Percakapan terasa lebih dekat.</p><form onSubmit={handleAuth} className="auth-form">{authMode === 'signup' && <label>Nama lengkap<input value={fullName} onChange={e=>setFullName(e.target.value)} placeholder="Nama Anda" required /></label>}<label>Email<input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="nama@email.com" required /></label><label>Password<input type="password" minLength="6" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Minimal 6 karakter" required /></label><button className="primary-btn" disabled={authBusy}>{authBusy ? 'Memproses...' : authMode === 'login' ? 'Masuk ke ChatWave' : 'Buat akun'}</button></form><button className="text-btn" onClick={()=>{setAuthMode(authMode === 'login' ? 'signup' : 'login');setNotice('')}}>{authMode === 'login' ? 'Belum punya akun? Daftar' : 'Sudah punya akun? Masuk'}</button>{notice && <div className="notice">{notice}</div>}<div className="secure-note">Private conversations · Realtime messaging</div></div></main>
 
   return <main className="app-shell"><aside className={'sidebar ' + (active ? 'mobile-hidden' : '')}><header className="side-header"><div className="brand-small"><div className="brand-mark small"><MessageCircle size={20}/></div><b>Chat<span>Wave</span></b></div><div className="header-actions"><button title="Cari pengguna" onClick={()=>setShowSearch(!showSearch)}><Plus/></button><button title="Keluar" onClick={()=>supabase.auth.signOut()}><LogOut/></button></div></header><button className="profile-strip profile-open" onClick={openProfileSettings} title="Ubah profil"><div className="avatar self">{profile?.avatar_url ? <img src={profile.avatar_url} alt="Foto profil"/> : <UserRound/>}</div><div className="profile-copy"><b>{displayName(profile)}</b><small>@{profile?.username || 'pengguna'} · Ubah profil</small></div><Settings className="profile-settings-icon" size={17}/></button><div className="search-box"><Search size={17}/><input value={search} onChange={e=>{setShowSearch(true);findPeople(e.target.value)}} onFocus={()=>setShowSearch(true)} placeholder="Cari teman untuk chat..." /></div>{showSearch && search.trim() ? <div className="people-list"><div className="section-label">HASIL PENCARIAN</div>{people.map(p=><button className="person-row" key={p.id} onClick={()=>startChat(p)}><div className="avatar">{p.avatar_url ? <img src={p.avatar_url} alt=""/> : (displayName(p)[0] || 'U').toUpperCase()}</div><div><b>{displayName(p)}</b><small>@{p.username || 'pengguna'}</small></div></button>)}{!people.length && <p className="empty-hint">Tidak ada pengguna ditemukan.</p>}</div> : <div className="sidebar-home">
         {homeTab === 'chat' && <><div className="list-heading"><span>Pesan</span><span className="muted-count">{conversations.length}</span></div><div className="conversation-list">{conversations.map(c=><button key={c.id} className={'conversation-row ' + (active?.id === c.id ? 'selected' : '')} onClick={()=>setActive(c)}><div className="avatar">{c.other?.avatar_url ? <img src={c.other.avatar_url} alt=""/> : (displayName(c.other)[0] || 'U').toUpperCase()}</div><div className="conversation-info"><div className="conversation-top"><b>{displayName(c.other)}</b><small>{c.last?.created_at ? new Date(c.last.created_at).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}) : ''}</small></div><p>{c.last?.body || 'Mulai percakapan baru'}</p></div></button>)}{!conversations.length && <div className="empty-state"><MessageCircle size={28}/><b>Belum ada percakapan</b><p>Tekan tombol + untuk mencari teman.</p></div>}</div></>}
-        {homeTab === 'status' && <div className="home-tab-content"><div className="list-heading"><span>Status</span></div><div className="tab-empty"><CircleDot size={34}/><b>Status belum tersedia</b><p>Fitur berbagi dan melihat status akan ditambahkan.</p></div></div>}
+        {homeTab === 'status' && <div className="home-tab-content"><div className="list-heading"><span>Status</span><div className="status-header-actions"><button type="button" onClick={loadStatusFeed} disabled={statusLoading} title="Muat ulang Status"><History size={15}/></button><button type="button" onClick={()=>setShowStatusComposer(true)}><Plus size={15}/>Tambah</button></div></div><div className="status-list">{statusGroups.map(group=>{const latest=group.statuses[group.statuses.length-1];const isMine=group.user_id===session.user.id;const hasUnseen=group.statuses.some(item=>!item.viewed_by_me&&!isMine);return <button type="button" className="status-row" key={group.user_id} onClick={()=>openStatusGroup(group)}><div className={'status-avatar-ring '+(hasUnseen?'unseen':'')}>{group.user?.avatar_url?<img src={group.user.avatar_url} alt=""/>:(displayName(group.user)[0]||'U').toUpperCase()}</div><div className="status-row-info"><b>{isMine?'Status saya':displayName(group.user)}</b><small>{group.statuses.length} status · {new Date(latest.created_at).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}</small><span>{latest.body || (latest.media_type==='video'?'Video':latest.media_type==='image'?'Foto':'Status')}</span></div>{isMine&&<span className="status-add-mini" onClick={e=>{e.stopPropagation();setShowStatusComposer(true)}}><Plus size={17}/></span>}</button>})}{statusLoading&&!statusGroups.length?<div className="tab-empty">Memuat Status...</div>:!statusGroups.length?<div className="tab-empty"><CircleDot size={34}/><b>Belum ada Status</b><p>Bagikan teks, foto, atau video. Status akan tersedia selama 24 jam.</p><button type="button" className="status-first-add" onClick={()=>setShowStatusComposer(true)}>Buat Status pertama</button></div>:null}</div><input ref={statusMediaInputRef} className="hidden-file-input" type="file" accept="image/*,video/*" onChange={e=>setStatusFile(e.target.files?.[0]||null)}/></div>}
         {homeTab === 'calls' && <div className="home-tab-content"><div className="list-heading"><span>Log Panggilan</span><button type="button" className="text-btn" onClick={loadCallLogs}>Muat ulang</button></div><div className="call-log-list">{callLogsLoading && !callLogs.length ? <div className="tab-empty">Memuat riwayat panggilan...</div> : callLogs.length ? callLogs.map(row => { const outgoing = row.started_by === session.user.id; const durationSeconds = row.started_at && row.ended_at ? Math.max(0, Math.floor((new Date(row.ended_at).getTime() - new Date(row.started_at).getTime()) / 1000)) : null; const durationLabel = durationSeconds === null ? '—' : String(Math.floor(durationSeconds / 60)).padStart(2, '0') + ':' + String(durationSeconds % 60).padStart(2, '0'); const statusLabel = row.status === 'missed' || (row.status === 'ringing' && !outgoing) ? 'Tidak terjawab' : row.status === 'declined' ? 'Ditolak' : row.status === 'ended' ? 'Berakhir' : row.status === 'accepted' ? 'Terhubung' : 'Memanggil'; return <div className="call-log-row" key={row.id}><div className="avatar">{row.peer?.avatar_url ? <img src={row.peer.avatar_url} alt=""/> : (displayName(row.peer)[0] || 'U').toUpperCase()}</div><div className="call-log-info"><b>{displayName(row.peer)}</b><small>{outgoing ? 'Panggilan keluar' : 'Panggilan masuk'} · {row.call_type === 'video' ? 'Video' : 'Suara'}</small><small>{new Date(row.started_at).toLocaleString('id-ID',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</small><small>Durasi: {durationLabel}</small></div><div className="call-log-result"><b>{statusLabel}</b><small>{row.ended_at ? new Date(row.ended_at).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}) : ''}</small></div></div> }) : <div className="tab-empty"><History size={34}/><b>Belum ada panggilan</b><p>Riwayat panggilan akan muncul otomatis di sini.</p></div>}</div></div>}
         <nav className="home-bottom-nav"><button className={homeTab==='chat'?'active':''} onClick={()=>{setHomeTab('chat');setShowSearch(false)}}><MessageCircle size={21}/><span>Chat</span></button><button className={homeTab==='status'?'active':''} onClick={()=>{setHomeTab('status');setShowSearch(false)}}><CircleDot size={21}/><span>Status</span></button><button className={homeTab==='calls'?'active':''} onClick={()=>{setHomeTab('calls');setShowSearch(false)}}><History size={21}/><span>Panggilan</span></button></nav></div>}</aside><section className={'chat-panel ' + (!active ? 'mobile-hidden' : '')}>{active ? <><header className="chat-header"><button className="back-btn" onClick={()=>setActive(null)}><ArrowLeft/></button><div className="avatar">{active.other?.avatar_url ? <img src={active.other.avatar_url} alt=""/> : (activeName[0] || 'U').toUpperCase()}</div><div className="chat-person"><b>{activeName}</b><small>{peerTyping ? 'sedang mengetik...' : peerOnline ? 'Online' : active.other?.last_seen_at ? 'Terakhir dilihat ' + new Date(active.other.last_seen_at).toLocaleString('id-ID',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : 'Waktu terakhir online belum tercatat'}</small></div><div className="chat-actions"><button title="Panggilan suara" onClick={startCall}><Phone/></button><button title="Panggilan video" onClick={startVideoCall}><Video/></button><button title="Info kontak" onClick={()=>setShowChatInfo(true)}><MoreVertical/></button></div></header><div className="message-area" ref={messageAreaRef} onScroll={trackMessageScroll}>{messages.length ? messages.map(m=><div key={m.id} className={'message-row ' + (m.sender_id === session.user.id ? 'mine' : '')}><div className="bubble"><div className="message-tools"><button type="button" className="message-action-trigger" title="Opsi pesan" aria-label="Opsi pesan" onClick={()=>setOpenMessageMenu(openMessageMenu===m.id?null:m.id)}><MoreVertical size={16}/></button>{openMessageMenu===m.id && <div className="message-action-menu"><button type="button" onClick={()=>beginReply(m)}><Reply size={15}/>Balas</button>{m.sender_id===session.user.id && !m.deleted_at && m.message_type==='text' && <button type="button" onClick={()=>beginEdit(m)}><Pencil size={15}/>Edit</button>}{m.sender_id===session.user.id && !m.deleted_at && <button type="button" className="danger-action" onClick={()=>deleteMessageForEveryone(m)}><Trash2 size={15}/>Tarik untuk semua</button>}</div>}</div>{m.reply_to && <div className="reply-quote"><b>{messages.find(x=>x.id===m.reply_to)?.sender_id===session.user.id?'Anda':active.other?.display_name || 'Pesan'}</b><span>{messages.find(x=>x.id===m.reply_to)?.deleted_at?'Pesan telah dihapus':messages.find(x=>x.id===m.reply_to)?.body || 'Pesan sebelumnya'}</span></div>}{m.deleted_at ? <span className="deleted-message"><em>Pesan ini telah dihapus</em></span> : m.message_type === 'image' && m.media_url ? <a href={m.media_url} target="_blank" rel="noreferrer"><img className="message-image" src={m.media_url} alt={m.body || 'Foto'} onLoad={()=>{if(initialChatScrollRef.current===active?.id){const area=messageAreaRef.current;if(area)area.scrollTop=area.scrollHeight}}} /></a> : m.message_type === 'file' && m.media_mime_type?.startsWith('audio/') && m.media_url ? <div className="voice-note-player"><audio controls preload="metadata" src={m.media_url}/><small>{m.body || 'Voice Note'}</small></div> : m.message_type === 'file' ? <a className="file-attachment" href={m.media_url || '#'} target="_blank" rel="noreferrer"><FileText size={18}/><span>{m.body || 'Unduh file'}</span></a> : m.body}<div className="message-meta">{m.edited_at && !m.deleted_at ? <span className="edited-label">diedit</span> : null}{new Date(m.created_at).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}{m.sender_id === session.user.id && (peerReadAt && new Date(peerReadAt) >= new Date(m.created_at) ? <CheckCheck className="read-check" size={14}/> : <Check size={14}/>)}</div></div></div>) : <div className="chat-empty"><div className="brand-mark"><MessageCircle/></div><b>Mulai percakapan</b><p>Kirim pesan pertama Anda.</p></div>}</div><form className="composer" onSubmit={sendMessage}>{(replyTarget || editingMessage) && <div className="composer-context"><div><b>{editingMessage ? "Mengedit pesan" : "Membalas " + (replyTarget.sender_id===session.user.id ? "pesan Anda" : (active.other?.display_name || "pesan"))}</b><span>{editingMessage ? "Ubah teks lalu simpan." : replyTarget.body || "Lampiran"}</span></div><button type="button" title="Batal" onClick={()=>{setReplyTarget(null);setEditingMessage(null);setDraft("")}}><X size={17}/></button></div>}<div className="emoji-picker-wrap" ref={emojiPickerRef}><button type="button" title="Emoji" aria-label="Buka pemilih emoji" onClick={()=>setShowEmojiPicker(value=>!value)}><Smile/></button>{showEmojiPicker && <div className="emoji-picker-panel" role="group" aria-label="Pilih emoji">{CHAT_EMOJIS.map(emoji=><button type="button" key={emoji} onClick={()=>{setDraft(value=>value+emoji);setShowEmojiPicker(false);broadcastTyping(true)}}>{emoji}</button>)}</div>}</div><button type="button" className={'voice-record-btn ' + (recordingVoiceNote ? 'recording' : '')} title={recordingVoiceNote ? 'Hentikan dan kirim Voice Note' : 'Rekam Voice Note'} aria-label={recordingVoiceNote ? 'Hentikan rekaman' : 'Rekam Voice Note'} disabled={uploadBusy} onClick={recordingVoiceNote ? stopVoiceRecording : startVoiceRecording}>{recordingVoiceNote ? <><Square size={15}/><span>{formatVoiceDuration(recordingSeconds)}</span></> : <Mic size={19}/>}</button><div className="attachment-picker-wrap" ref={attachmentPickerRef}><button type="button" title="Lampiran" aria-label="Buka pilihan lampiran" disabled={uploadBusy} onClick={()=>setShowAttachmentMenu(v=>!v)}><Paperclip/></button>{showAttachmentMenu && <div className="attachment-menu"><button type="button" onClick={()=>{setShowAttachmentMenu(false);cameraInputRef.current?.click()}}><Camera size={19}/><span>Kamera</span></button><button type="button" onClick={()=>{setShowAttachmentMenu(false);attachmentInputRef.current?.click()}}><FolderOpen size={19}/><span>File</span></button><button type="button" onClick={()=>{setShowAttachmentMenu(false);shareCurrentLocation()}}><MapPin size={19}/><span>Bagikan lokasi</span></button><button type="button" onClick={()=>{setShowAttachmentMenu(false);galleryInputRef.current?.click()}}><Images size={19}/><span>Galeri</span></button></div>}</div><input ref={cameraInputRef} className="hidden-file-input" type="file" accept="image/*" capture="environment" onChange={e=>handleAttachmentFiles(e.target.files)}/><input ref={attachmentInputRef} className="hidden-file-input" type="file" onChange={e=>handleAttachmentFiles(e.target.files)}/><input ref={galleryInputRef} className="hidden-file-input" type="file" accept="image/*,video/*" multiple onChange={e=>handleAttachmentFiles(e.target.files)}/><input value={draft} onChange={e=>{setDraft(e.target.value);if(!editingMessage)broadcastTyping(!!e.target.value.trim())}} placeholder={uploadBusy ? 'Mengunggah...' : editingMessage ? 'Edit pesan...' : 'Tulis pesan...'} /><button className="send-btn" type="submit" disabled={!draft.trim()}>{editingMessage ? <Save size={19}/> : <Send size={19}/>}</button></form></> : <div className="welcome-panel"><div className="welcome-art"><MessageCircle size={54}/></div><h2>Selamat datang di ChatWave</h2><p>Pilih percakapan atau cari teman untuk mulai mengobrol.</p><span>PRIVATE · SIMPLE · CONNECTED</span></div>}</section>{showChatInfo && active && <div className="chat-info-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setShowChatInfo(false)}}><section className="chat-info-card"><button type="button" className="chat-info-close" onClick={()=>setShowChatInfo(false)} aria-label="Tutup"><X size={19}/></button><div className="chat-info-avatar">{active.other?.avatar_url ? <img src={active.other.avatar_url} alt="Foto profil"/> : (activeName[0] || 'U').toUpperCase()}</div><h2>{activeName}</h2><p className="chat-info-username">@{active.other?.username || 'pengguna'}</p><div className="chat-info-divider"/><div className="chat-info-status"><span className={'chat-info-dot ' + (peerOnline ? 'online' : '')}/>{peerOnline ? 'Sedang online' : 'Tidak sedang online'}</div><button type="button" className="chat-info-done" onClick={()=>setShowChatInfo(false)}>Tutup</button></section></div>}{showProfile && <div className="profile-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setShowProfile(false)}}><section className="profile-modal"><header className="profile-modal-head"><div><span className="profile-kicker">AKUN CHATWAVE</span><h2>Pengaturan Profil</h2></div><button type="button" className="profile-close" onClick={()=>setShowProfile(false)} aria-label="Tutup"><X size={20}/></button></header><form className="profile-form" onSubmit={saveProfile}><div className="avatar-editor"><div className="avatar avatar-large">{profile?.avatar_url ? <img src={profile.avatar_url} alt="Foto profil"/> : <UserRound/>}</div><div><b>Foto profil</b><small>JPG, PNG, WEBP atau GIF · Maks. 5 MB</small><button type="button" className="avatar-upload-btn" disabled={uploadBusy} onClick={()=>avatarInputRef.current?.click()}><Upload size={14}/>{uploadBusy ? 'Mengunggah...' : 'Pilih foto'}</button><input ref={avatarInputRef} className="hidden-file-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={e=>uploadAvatar(e.target.files?.[0])}/></div></div><label>Nama tampilan<input value={editDisplayName} onChange={e=>setEditDisplayName(e.target.value)} maxLength={40} placeholder="Nama yang terlihat di chat" required /></label><p className="field-help">Nama ini akan terlihat oleh teman saat mengobrol.</p><label>Username<input value={editUsername} onChange={e=>setEditUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g,''))} minLength={3} maxLength={24} placeholder="contoh: elsaddhai" required /></label><p className="field-help">Dipakai orang lain untuk menemukan akun Anda. 3–24 karakter, huruf kecil, angka, atau _.</p><label>Email akun<input value={session.user.email || ''} disabled /></label><button className="primary-btn profile-save" type="submit" disabled={profileBusy}><Save size={17}/>{profileBusy ? 'Menyimpan...' : 'Simpan perubahan'}</button></form></section></div>}{call && <div className="call-overlay"><section className="call-card"><div className="call-avatar"><Phone size={28}/></div><h2>{activeName}</h2><p>{callStatus||'Panggilan'}</p><div className="call-time">{String(Math.floor(callSeconds/60)).padStart(2,'0')}:{String(callSeconds%60).padStart(2,'0')}</div>{call.call_type==='video'&&<div className="video-call-stage"><video ref={localVideoRef} autoPlay playsInline muted className="local-video"/><video autoPlay playsInline className="remote-video" ref={el=>{if(el&&remoteVideoStream&&el.srcObject!==remoteVideoStream){el.srcObject=remoteVideoStream;el.play().catch(()=>{})}}}/></div>}<audio ref={audioRef} autoPlay playsInline style={{display:'block',width:'100%',marginTop:8}}/><div className="call-route-controls"><button type="button" className={audioRoute==='earpiece'?'route-active':''} disabled={audioRouteBusy} onClick={()=>changeAudioRoute('earpiece')}><PhoneCall size={16}/> Telepon</button><button type="button" className={audioRoute==='speaker'?'route-active':''} disabled={audioRouteBusy} onClick={()=>changeAudioRoute('speaker')}><Volume2 size={16}/> Speaker</button></div><div className="call-controls">{call.started_by!==session.user.id&&call.status==='ringing'?<><button onClick={acceptCall}>Terima</button><button className="end-call" onClick={()=>endCall('declined')}>Tolak</button></>:<><button onClick={toggleMute}>{callMuted?'Aktifkan mic':'Mute mic'}</button><button className="end-call" onClick={()=>endCall('ended')}>Akhiri</button></>}</div></section></div>}{notice && <div className="toast" role="status" aria-live="polite">{notice}</div>}</main>
 }
