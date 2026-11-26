@@ -392,3 +392,14 @@ html.native-app #root{
   .status-composer-overlay{padding:10px}
   .status-composer-card{padding:17px}
 }
+
+
+/* Message reactions */
+.message-reaction-picker{position:relative;z-index:12;display:flex;align-items:center;gap:3px;width:max-content;max-width:100%;margin:0 0 8px;padding:5px 6px;border:1px solid #3a6859;border-radius:22px;background:#0d261f;box-shadow:0 8px 22px #0006}
+.message-reaction-picker button{display:grid;place-items:center;width:30px;height:30px;padding:0;border:0;border-radius:50%;background:transparent;font-size:19px}
+.message-reaction-picker button:hover{background:#245042;transform:scale(1.12)}
+.message-reactions{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-top:7px}
+.message-reactions button{display:inline-flex;align-items:center;gap:4px;min-width:36px;padding:3px 7px;border:1px solid #3a6053;border-radius:16px;background:#0c2b23;color:#e2f6ec;font-size:12px;line-height:1.2}
+.mine .message-reactions button{background:#0c5948;border-color:#348d76}
+.message-reactions button.reacted{border-color:#75e1bd;background:#1c604c;box-shadow:inset 0 0 0 1px #75e1bd55}
+.message-reactions button span{font-size:10px;color:#b9d8cb}
