@@ -253,3 +253,6 @@ html.native-app #root{
 .composer-context>button{flex:none;border:0;background:transparent;color:#8eaaa2;padding:6px}
 @media(min-width:701px){.message-action-trigger{opacity:.45}.bubble:hover .message-action-trigger,.message-action-trigger:focus{opacity:1}}
 @media(max-width:700px){.message-action-trigger{opacity:.9}.composer-context span{max-width:68vw}}
+
+/* Keep the reply/edit context above the composer without changing its row layout */
+.composer-context{position:absolute;left:8px;right:8px;bottom:calc(100% + 8px);flex:none;margin:0;z-index:6}
