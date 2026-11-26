@@ -403,3 +403,7 @@ html.native-app #root{
 .mine .message-reactions button{background:#0c5948;border-color:#348d76}
 .message-reactions button.reacted{border-color:#75e1bd;background:#1c604c;box-shadow:inset 0 0 0 1px #75e1bd55}
 .message-reactions button span{font-size:10px;color:#b9d8cb}
+
+
+.status-progress span.current{background:#ffffff;transform:scaleX(0);transform-origin:left;animation:status-progress-fill 5s linear forwards}
+@keyframes status-progress-fill{to{transform:scaleX(1)}}
