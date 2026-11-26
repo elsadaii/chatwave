@@ -17,3 +17,10 @@
 .chat-panel{height:100%;min-height:0}
 .message-area{flex:1;min-height:0}
 @media(max-width:700px){.chat-header{min-height:66px;padding-top:max(10px,env(safe-area-inset-top));padding-bottom:10px}.chat-person{min-width:0}.chat-person b,.chat-person small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+
+/* Reinforce stable header/composer layout so they never scroll with messages */
+.chat-panel{display:flex!important;flex-direction:column!important;height:100dvh!important;overflow:hidden!important;min-height:0!important}
+.chat-header{position:relative!important;top:auto!important;display:flex!important;flex:0 0 auto!important;z-index:10!important}
+.message-area{flex:1 1 0!important;height:0!important;min-height:0!important;overflow-y:auto!important}
+.composer{flex:0 0 auto!important}
+@media(max-width:700px){.chat-panel{height:100dvh!important}.chat-header{flex-shrink:0!important}}
