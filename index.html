@@ -8,7 +8,15 @@
     <title>ChatWave</title>
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <div id="root">
+      <div id="startup-check" style="min-height:100vh;background:#071514;color:#eaf5f2;display:grid;place-items:center;font-family:system-ui;padding:24px;text-align:center">
+        <div><h2>ChatWave</h2><p>Memuat aplikasi…</p><p style="font-size:13px;color:#91aaa3">Jika layar ini tidak berubah, aplikasi gagal memulai. Pesan diagnostik akan muncul di sini.</p></div>
+      </div>
+    </div>
+    <script>
+      window.addEventListener('error',function(e){var r=document.getElementById('root');if(r&&document.getElementById('startup-check'))r.innerHTML='<div style="background:#101827;color:white;min-height:100vh;padding:24px;font-family:system-ui"><h2>ChatWave gagal dimuat</h2><pre style="white-space:pre-wrap">'+String(e.message||'Kesalahan memuat file aplikasi')+'\\n'+String(e.filename||'')+'\\nBaris: '+String(e.lineno||'')+'</pre></div>'});
+      window.addEventListener('unhandledrejection',function(e){var r=document.getElementById('root');if(r&&document.getElementById('startup-check'))r.innerHTML='<div style="background:#101827;color:white;min-height:100vh;padding:24px;font-family:system-ui"><h2>ChatWave gagal memulai</h2><pre style="white-space:pre-wrap">'+String(e.reason||'Promise error')+'</pre></div>'});
+    </script>
+    <script type="module" src="./src/main.jsx"></script>
   </body>
 </html>
