@@ -163,3 +163,50 @@
   position:relative!important;
   z-index:2!important;
 }
+
+/* Android: force the sidebar to use the full app viewport so bottom tabs cannot float upward */
+html.native-app,
+html.native-app body,
+html.native-app #root{
+  height:100%!important;
+  min-height:0!important;
+  overflow:hidden!important;
+}
+@media(max-width:700px){
+  html.native-app .app-shell{
+    height:100dvh!important;
+    min-height:0!important;
+    max-height:100dvh!important;
+    align-items:stretch!important;
+    overflow:hidden!important;
+  }
+  html.native-app .sidebar:not(.mobile-hidden){
+    height:100dvh!important;
+    min-height:0!important;
+    max-height:100dvh!important;
+    flex:1 1 100%!important;
+    display:flex!important;
+    flex-direction:column!important;
+    overflow:hidden!important;
+  }
+  html.native-app .sidebar-home{
+    flex:1 1 0!important;
+    min-height:0!important;
+    max-height:none!important;
+    display:flex!important;
+    flex-direction:column!important;
+    overflow:hidden!important;
+  }
+  html.native-app .sidebar-home>.conversation-list,
+  html.native-app .sidebar-home>.home-tab-content{
+    flex:1 1 0!important;
+    min-height:0!important;
+    overflow-y:auto!important;
+  }
+  html.native-app .sidebar-home>.home-bottom-nav{
+    flex:0 0 auto!important;
+    margin-top:auto!important;
+    padding-bottom:calc(8px + env(safe-area-inset-bottom, 0px))!important;
+    position:relative!important;
+  }
+}
