@@ -231,3 +231,25 @@ html.native-app #root{
 .attachment-picker-wrap>button{border:0;background:transparent;color:#8eaaa2;padding:9px;border-radius:10px}
 .attachment-picker-wrap>button:hover{background:#1a3832;color:#55d9b6}
 .attachment-picker-wrap>button:disabled{opacity:.4;cursor:wait}
+
+/* Message reply, edit and recall actions */
+.bubble{position:relative;padding-top:15px;padding-right:28px}
+.message-tools{position:absolute;top:4px;right:5px;z-index:5}
+.message-action-trigger{display:grid;place-items:center;width:23px;height:23px;padding:0;border:0;border-radius:7px;background:transparent;color:#8eaaa2;opacity:.85}
+.message-action-trigger:hover{background:#24483e;color:#68dfbd;opacity:1}
+.message-action-menu{position:absolute;right:0;top:25px;z-index:40;min-width:164px;padding:6px;display:grid;gap:3px;background:#102a24;border:1px solid #31594d;border-radius:11px;box-shadow:0 12px 28px #0008}
+.message-action-menu button{display:flex;align-items:center;gap:8px;width:100%;padding:9px 10px;border:0;border-radius:7px;background:transparent;color:#d9eee5;text-align:left;font-size:12px}
+.message-action-menu button:hover{background:#1d4035}
+.message-action-menu button.danger-action{color:#ffaaa5}
+.reply-quote{display:grid;gap:3px;margin:0 0 8px;padding:7px 9px;border-left:3px solid #5bd5b0;border-radius:5px;background:#0d2923;color:#b9d8cc;max-width:100%}
+.reply-quote b{font-size:10px;color:#70dfbd}
+.reply-quote span{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.deleted-message{display:block;color:#a5b8b0;font-size:12px;font-style:italic}
+.edited-label{color:#a8c9bd;font-size:9px;font-style:italic}
+.composer-context{display:flex;align-items:center;justify-content:space-between;gap:10px;flex:1 0 100%;min-width:0;margin:0 0 4px;padding:8px 10px;border-left:3px solid #42cba7;border-radius:8px;background:#122d26}
+.composer-context>div{display:grid;gap:2px;min-width:0}
+.composer-context b{font-size:11px;color:#7fe1c3}
+.composer-context span{max-width:70vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#b5cfc5}
+.composer-context>button{flex:none;border:0;background:transparent;color:#8eaaa2;padding:6px}
+@media(min-width:701px){.message-action-trigger{opacity:.45}.bubble:hover .message-action-trigger,.message-action-trigger:focus{opacity:1}}
+@media(max-width:700px){.message-action-trigger{opacity:.9}.composer-context span{max-width:68vw}}
