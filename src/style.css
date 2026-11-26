@@ -47,3 +47,17 @@
 
 /* Android APK: keep the home header clear of the system status bar */
 @media(max-width:700px){.native-app .side-header{height:100px!important;min-height:100px!important;padding-top:24px!important;flex:0 0 100px!important;}}
+
+
+/* Prevent long last-seen text from colliding with call action icons */
+.chat-header .chat-person{min-width:0!important;flex:1 1 0!important;overflow:hidden!important}
+.chat-header .chat-person b{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chat-header .chat-person small{display:block;max-width:100%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chat-header .chat-actions{flex:0 0 auto!important;gap:0!important}
+.chat-header .chat-actions button{flex:0 0 34px!important;width:34px!important;min-width:34px!important;padding:7px!important;display:grid;place-items:center}
+@media(max-width:700px){
+  .chat-header{gap:8px!important;padding-left:9px!important;padding-right:7px!important}
+  .chat-header .avatar{width:38px!important;height:38px!important;border-radius:13px!important}
+  .chat-header .chat-person{flex:1 1 0!important}
+  .chat-header .chat-person small{font-size:9px!important}
+}
