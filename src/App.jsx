@@ -6,6 +6,10 @@ import { registerPlugin } from '@capacitor/core'
 const AudioRoute = registerPlugin('AudioRoute')
 
 export default function App() {
+  useEffect(() => {
+    if (window.Capacitor?.isNativePlatform?.()) document.documentElement.classList.add('native-app')
+    return () => document.documentElement.classList.remove('native-app')
+  }, [])
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
   const [authMode, setAuthMode] = useState('login')
