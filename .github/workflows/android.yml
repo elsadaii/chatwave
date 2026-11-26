@@ -78,13 +78,20 @@ jobs:
               @PluginMethod
               public void setRoute(PluginCall call) {
                   String route = call.getString("route", "earpiece");
-                  if (!"speaker".equals(route) && !"earpiece".equals(route)) {
+                  if (!"speaker".equals(route) && !"earpiece".equals(route) && !"normal".equals(route)) {
                       call.reject("Pilihan jalur audio tidak dikenal.");
                       return;
                   }
                   AudioManager manager = (AudioManager) getContext().getSystemService(android.content.Context.AUDIO_SERVICE);
                   if (manager == null) {
                       call.reject("Audio Android tidak tersedia.");
+                      return;
+                  }
+                  if ("normal".equals(route)) {
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) manager.clearCommunicationDevice();
+                      manager.setSpeakerphoneOn(false);
+                      manager.setMode(AudioManager.MODE_NORMAL);
+                      call.resolve();
                       return;
                   }
                   manager.setMode(AudioManager.MODE_IN_COMMUNICATION);
