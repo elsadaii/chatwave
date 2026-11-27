@@ -237,7 +237,7 @@ html.native-app #root{
 .message-tools{position:absolute;top:4px;right:5px;z-index:5}
 .message-action-trigger{display:grid;place-items:center;width:23px;height:23px;padding:0;border:0;border-radius:7px;background:transparent;color:#8eaaa2;opacity:.85}
 .message-action-trigger:hover{background:#24483e;color:#68dfbd;opacity:1}
-.message-action-menu{position:absolute;right:0;top:25px;z-index:40;min-width:164px;padding:6px;display:grid;gap:3px;background:#102a24;border:1px solid #31594d;border-radius:11px;box-shadow:0 12px 28px #0008}
+.message-action-menu{position:absolute;left:0;right:auto;top:25px;z-index:40;min-width:164px;max-width:min(220px,calc(100vw - 32px));padding:6px;display:grid;gap:3px;background:#102a24;border:1px solid #31594d;border-radius:11px;box-shadow:0 12px 28px #0008;box-sizing:border-box}
 .message-action-menu button{display:flex;align-items:center;gap:8px;width:100%;padding:9px 10px;border:0;border-radius:7px;background:transparent;color:#d9eee5;text-align:left;font-size:12px}
 .message-action-menu button:hover{background:#1d4035}
 .message-action-menu button.danger-action{color:#ffaaa5}
