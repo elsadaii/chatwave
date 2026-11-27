@@ -484,3 +484,7 @@ html.native-app #root{
 /* Keep only intentional message content visible; ignore stray raw JSX text nodes. */
 .bubble{font-size:0}
 .bubble .message-body{display:block;font-size:13px;line-height:1.5}
+
+/* Message options are opened by long press instead of a visible overflow button. */
+.message-tools{position:absolute;top:4px;right:5px;z-index:5}
+.bubble{touch-action:pan-y}
